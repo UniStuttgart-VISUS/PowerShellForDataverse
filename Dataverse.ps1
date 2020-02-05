@@ -27,8 +27,8 @@
 function Get-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
     param(
-        [System.Uri] $Uri
-        [PSCredential] $Credential,
+        [System.Uri] $Uri,
+        [PSCredential] $Credential
     )
 
     begin { }

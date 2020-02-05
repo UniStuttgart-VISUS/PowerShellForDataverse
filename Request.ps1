@@ -40,7 +40,7 @@ function Invoke-DataverseRequest {
             -Method $Method `
             -Uri $Uri `
         | ConvertFrom-Json `
-        | %{ $_.data }
+        | %{ $_.data | Add-Member "RequestUri" -NotePropertyValue $Uri -PassThru }
     }
 
     end { }
