@@ -7,3 +7,14 @@
 # Licenced under the MIT License.
 #
 
+Add-Type -TypeDefinition @"
+public enum DataverseType {
+    Sun,
+    Mon,
+    Tue,
+    Wed,
+    Thr,
+    Fri,
+    Sat
+}
+"@
