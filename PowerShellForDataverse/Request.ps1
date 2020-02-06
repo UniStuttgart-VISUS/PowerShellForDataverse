@@ -10,7 +10,7 @@
 
 <#
 .SYNOPSIS
-Retrieves the metadata of a Dataverse.
+Makes a call to the Dataverse native API.
 
 .DESCRIPTION
 The web API of Dataverse requires the API key being specified in a special

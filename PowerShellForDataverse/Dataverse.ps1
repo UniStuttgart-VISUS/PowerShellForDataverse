@@ -8,7 +8,6 @@
 #
 
 
-
 <#
 .SYNOPSIS
 Retrieves the metadata of a Dataverse.
