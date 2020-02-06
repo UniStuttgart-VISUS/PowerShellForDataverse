@@ -1,34 +1,37 @@
 #
-# Copyright © 2020 Visualisierungsinstitut der Universität Stuttgart. Alle Rechte vorbehalten.
+# Dataverse.ps1
+#
+# Copyright Â© 2020 Visualisierungsinstitut der UniversitÃ¤t Stuttgart.
+# Alle Rechte vorbehalten.
+#
 # Licenced under the MIT License.
 #
 
 
-#
-# .SYNOPSIS
-# Retrieves the metadata of a Dataverse.
-#
-# .DESCRIPTION
-#
-# .PARAMETER Credential
-# The Credential parameter specifies a PowerShell credential which contains the
-# API key used to connect to the Dataverse in the password field. Any user name
-# can be specified.
-#
-# .PARAMETER Url
-# The Url parameter specifies the URL of the Dataverse to get the properties of.
-#
-# .NOTES
-#
-# .EXAMPLES
-# # Retrieve the description of the Dataverse of VISUS
-# Get-Dataverse -Credential (Get-Credential apikey) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
-#
+
+<#
+
+.SYNOPSIS
+Retrieves the metadata of a Dataverse.
+
+.DESCRIPTION
+
+.PARAMETER Uri
+The Uri parameter specifies the URL of the Dataverse to get the properties of.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored.
+
+.EXAMPLE
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+
+#>
 function Get-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
     param(
-        [System.Uri] $Uri,
-        [PSCredential] $Credential
+        [Parameter(Mandatory = $true, Position = 0)] [System.Uri] $Uri,
+        [Parameter(ParameterSetName = "Credential")] [PSCredential] $Credential
     )
 
     begin { }
@@ -43,39 +46,57 @@ function Get-Dataverse {
 }
 
 
-#
-# .SYNOPSIS
-# Adds a new Dataverse below the given one.
-#
-# .DESCRIPTION
-#
-# .PARAMETER Credential
-#
-# .PARAMETER Dataverse
-#
-# .EXAMPLES
-#
+<#
+
+.SYNOPSIS
+Adds a new Dataverse below the given one.
+
+.DESCRIPTION
+
+.PARAMETER Credential
+
+.PARAMETER Dataverse
+
+.EXAMPLE
+
+#>
 function New-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
     param(
-        [PSCredential] $Credential,
-        $Dataverse
+        [Parameter(ParameterSetName = "Dataverse", Mandatory = $true,
+            ValueFromPipeline = $true)][PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory = $true)]
+            [System.Uri] $Uri,
+        [PSCredential] $Credential
     )
+
+    begin {
+        switch ($PSCmdlet.ParameterSetName) {
+            "Dataverse" { $Uri = $Dataverse.RequestUri }
+            default { <# Nothing to do. #> }
+        }
+     }
+
+    process {
+        if ($PSCmdlet.ShouldProcess($Uri)) {
+            
+        }
+    }
+
+    end { }
 }
 
 
-#
-# .SYNOPSIS
-# Removes the given Dataverse.
-#
-# .DESCRIPTION
-#
-# .PARAMETER Credential
-#
-# .PARAMETER Url
-#
-# .EXAMPLES
-#
+<#
+
+.SYNOPSIS
+Removes the given Dataverse.
+
+.DESCRIPTION
+
+.EXAMPLE
+
+#>
 function Remove-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
     param()
