@@ -19,6 +19,12 @@ both handled by this utility method. All other cmdlets use this method to make
 their requests making this the single point to modify the web requests of the
 module.
 
+This method extracts the actual content of any Dataverse response retrieved and
+returns only this content as PowerShell object. The URI of the request and the
+credential used for authentication are attached to the return value making it
+possible to pipe the results into other cmdlets without having to specify the
+URI and/or the credential every time.
+
 .PARAMETER Uri
 The Uri parameter specifies the URI of the resource to be requested.
 
@@ -49,7 +55,6 @@ This cmdlet does not accept input from the pipline.
 
 .OUTPUTS
 The object returned by the Dataverse API.
-
 #>
 function Invoke-DataverseRequest {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingCmdletAliases",
