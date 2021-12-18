@@ -1,5 +1,5 @@
 #
-# Copyright © 2020 Visualisierungsinstitut der Universität Stuttgart. Alle Rechte vorbehalten.
+# Copyright ï¿½ 2020 Visualisierungsinstitut der Universitï¿½t Stuttgart. Alle Rechte vorbehalten.
 # Licenced under the MIT License.
 #
 
@@ -15,9 +15,16 @@
 # their requests making this the single point to modify the web requests of the
 # module.
 #
-# .PARAMETER Credential
-#
 # .PARAMETER Uri
+# The Uri Parameter specifies the URL of the web request.
+#
+# .PARAMETER Credential
+# The Credential parameter specifies the API token used to authenticate with the
+# Dataverse server. Only the password is used.
+#
+# .PARAMETER ContentType
+#
+# .PARAMETER Method
 #
 # .NOTES
 # This is an internal utility function.
