@@ -10,9 +10,168 @@
 
 <#
 .SYNOPSIS
+Adds a role for a user on a dataverse.
+
+.DESCRIPTION
+Connects to the given dataverse (either specified as object or as API URL) and
+adds the specified role for the specified user or group principal on this
+dataverse.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the dataverse to which the role is being
+assigned.
+
+.PARAMETER Uri
+The Uri parameter specifies the URI of the dataverse to which the role is being
+assigned.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored. The Credential parameter can be omitted if a Dataverse object is
+specified as input.
+
+.PARAMETER Principal
+The Assignee parameter specifies the name of the user or group which receives
+the specified role.
+
+.PARAMETER Role
+The Role parameter specifies the name of the role being assigned.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+A confirmation of the successful operation.
+
+.EXAMPLE
+Add-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) -Principal "@user" -Role curator
+#>
+function Add-DataverseRole {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
+    param(
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+        [PSCredential] $Credential,
+        [Parameter(Mandatory, Position = 1)]
+        [String] $Principal,
+        [Parameter(Mandatory, Position = 2)]
+        [String] $Role
+    )
+
+    begin {
+        switch ($PSCmdlet.ParameterSetName) {
+            "Dataverse" {
+                 $Uri = [Uri]::new($Dataverse.RequestUri)
+                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
+
+                 if (!$Credential) {
+                    $Credential = $Dataverse.Credential
+                    Write-Verbose "Using credential from existing Dataverse."
+                }                 
+            }
+            default { <# Nothing to do. #> }
+        }
+
+        $body = "{ `"assignee`": `"$Principal`", `"role`": `"$Role`" }"
+        $uri = "$($Uri.AbsoluteUri)/assignments"
+     }
+
+    process {
+        Write-Verbose "Assigning role `"$Role`" to `"$Principal`" on `"$Uri`"."
+
+        if ($PSCmdlet.ShouldProcess($uri, "POST")) {
+            Invoke-DataverseRequest -Uri $uri `
+                -Credential $Credential `
+                -Method Post `
+                -ContentType "application/json" `
+                -Body $body
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
+Retrieves all role assignments for a dataverse.
+
+.DESCRIPTION
+Connects to the given dataverse (either specified as object or as API URL) and
+retrieves all role assignments for it.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the dataverse to which the role is being
+assigned.
+
+.PARAMETER Uri
+The Uri parameter specifies the URI of the dataverse to which the role is being
+assigned.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored. The Credential parameter can be omitted if a Dataverse object is
+specified as input.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+A list of role assignments for the specified dataverse.
+
+.EXAMPLE
+Get-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token)
+#>
+function Get-DataverseRole {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+    param(
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+        [PSCredential] $Credential
+    )
+
+    begin {
+        switch ($PSCmdlet.ParameterSetName) {
+            "Dataverse" {
+                 $Uri = [Uri]::new($Dataverse.RequestUri)
+                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
+
+                 if (!$Credential) {
+                    $Credential = $Dataverse.Credential
+                    Write-Verbose "Using credential from existing Dataverse."
+                }                 
+            }
+            default { <# Nothing to do. #> }
+        }
+
+        $uri = "$($Uri.AbsoluteUri)/assignments"
+     }
+
+    process {
+        Write-Verbose "Retrieving role assignments for `"$Uri`"."
+
+        if ($PSCmdlet.ShouldProcess($uri, "POST")) {
+            Invoke-DataverseRequest -Uri $uri `
+                -Credential $Credential `
+                -Method Get
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
 Retrieves the metadata of a Dataverse.
 
 .DESCRIPTION
+Retrieves a dataverse object via its API URL. The resulting object can be used
+to manipulate the dataverse by means of the other dataverse-related cmdtlets.
 
 .PARAMETER Uri
 The Uri parameter specifies the URL of the Dataverse to get the properties of.
@@ -29,7 +188,7 @@ function Get-Dataverse {
     param(
         [Parameter(Mandatory, Position = 0)] [System.Uri] $Uri,
         [Parameter(ParameterSetName = "Credential", Mandatory, Position = 1)]
-            [PSCredential] $Credential
+        [PSCredential] $Credential
     )
 
     begin { }
@@ -165,9 +324,9 @@ function New-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory)]
-            [PSObject] $Dataverse,
+        [PSObject] $Dataverse,
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
-            [System.Uri] $Uri,
+        [System.Uri] $Uri,
         [Parameter(Mandatory, ValueFromPipeline)] [PSObject] $Description,
         [PSCredential] $Credential
     )
@@ -234,7 +393,7 @@ function Remove-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
-            [PSObject] $Dataverse,
+        [PSObject] $Dataverse,
         [Parameter(ParameterSetName = "Uri", Mandatory)] [System.Uri] $Uri,
         [PSCredential] $Credential
     )
