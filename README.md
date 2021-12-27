@@ -40,6 +40,13 @@ $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Get-DataSet -Recurse | ?{ $_.latestVersion.versionState -eq 'RELEASED' }
 ```
 
+### Retrieve permissions on a Dataverse
+```powershell
+$cred = Get-Credential token
+Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential $prodcred | Get-DataverseRole
+Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential $prodcred | Get-ChildDataverse -Recurse | Get-DataverseRole
+```
+
 ### Delete a Dataverse
 ```powershell
 $cred = Get-Credential token

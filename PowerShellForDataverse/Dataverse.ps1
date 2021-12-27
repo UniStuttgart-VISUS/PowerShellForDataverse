@@ -337,10 +337,10 @@ function Get-DataverseRole {
         $Uri = "$($params[0].AbsoluteUri)/assignments"
         $Credential = $params[1]
 
-        Write-Verbose "Retrieving role assignments for `"$Credential`"."
+        Write-Verbose "Retrieving role assignments for `"$Uri`"."
 
-        if ($PSCmdlet.ShouldProcess($Credential, "POST")) {
-            Invoke-DataverseRequest -Uri $Credential `
+        if ($PSCmdlet.ShouldProcess($Uri, "POST")) {
+            Invoke-DataverseRequest -Uri $Uri `
                 -Credential $Credential `
                 -Method Get
         }
