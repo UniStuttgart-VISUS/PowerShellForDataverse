@@ -49,44 +49,237 @@ Add-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Creden
 function Add-DataverseRole {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
     param(
-        [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
         [PSCredential] $Credential,
-        [Parameter(Mandatory, Position = 1)]
+        [Parameter(Mandatory)]
         [String] $Principal,
-        [Parameter(Mandatory, Position = 2)]
+        [Parameter(Mandatory)]
         [String] $Role
     )
 
     begin {
-        switch ($PSCmdlet.ParameterSetName) {
-            "Dataverse" {
-                 $Uri = [Uri]::new($Dataverse.RequestUri)
-                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
-
-                 if (!$Credential) {
-                    $Credential = $Dataverse.Credential
-                    Write-Verbose "Using credential from existing Dataverse."
-                }                 
-            }
-            default { <# Nothing to do. #> }
-        }
-
         $body = "{ `"assignee`": `"$Principal`", `"role`": `"$Role`" }"
-        $uri = "$($Uri.AbsoluteUri)/assignments"
-     }
+    }
 
     process {
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = "$($params[0].AbsoluteUri)/assignments"
+        $Credential = $params[1]
+
         Write-Verbose "Assigning role `"$Role`" to `"$Principal`" on `"$Uri`"."
 
-        if ($PSCmdlet.ShouldProcess($uri, "POST")) {
-            Invoke-DataverseRequest -Uri $uri `
+        if ($PSCmdlet.ShouldProcess($Uri, 'POST')) {
+            Invoke-DataverseRequest -Uri $Uri `
                 -Credential $Credential `
                 -Method Post `
                 -ContentType "application/json" `
                 -Body $body
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
+Retrieves the the child dataverses of the given dataverse.
+
+.DESCRIPTION
+This cmdlet retrieves all children of the given dataverse and filters the
+results for dataverses, i.e. no data sets are returned by this method. In
+contrast to the plain API calls, this cmdlet supports recursive enumeration
+of child dataverses.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies an existing dataverse to retrieve the child
+dataverses for.
+
+.PARAMETER Uri
+The Uri parameter specifies the URI of an existing dataverse to retrieve the
+child dataverses for.
+
+.PARAMETER Credential
+The Credential parameter provides the API token to connect to the dataverse
+API.
+
+.PARAMETER Recurse
+The Recurse switch instructs the cmdlet to recursively retrieve all child
+dataverses of the given dataverse. By default, the API returns only immediate
+children, but with this switch, additional API calls will be made to obtain
+all children.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+All child dataverses of the given one.
+
+.EXAMPLE
+Get-ChildDataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+
+.EXAMPLE
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-ChildDataverse
+#>
+function Get-ChildDataverse {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+
+    param(
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+        [PSCredential] $Credential,
+        [switch] $Recurse
+    )
+
+    begin { }
+
+    process {
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = "$($params[0].AbsoluteUri)/contents"
+        $Credential = $params[1]
+
+        $p = $params[0].Segments | Select-Object -First ($params[0].Segments.Count - 1)
+        $baseUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"        
+
+        if ($PSCmdlet.ShouldProcess($Uri, "GET")) {
+            $children = (Invoke-DataverseRequest -Uri $Uri -Credential $Credential `
+                | Where-Object { $_.type -imatch '^dataverse$' })
+
+            # Emit the whole data of all the children, which must be retrieved
+            # using an additional request.
+            $children | ForEach-Object { Get-Dataverse -Uri "$baseUri$($_.id)" -Credential $Credential }
+
+            # If requested, retrieve recursive children.
+            if ($Recurse) {
+                Write-Verbose "Retrieving children recursively ..."
+                $children | ForEach-Object { Get-ChildDataverse -Uri "$baseUri$($_.id)" -Credential $Credential -Recurse }
+            }
+        }
+    }
+
+    end { }
+}
+
+<#
+.SYNOPSIS
+Retrieves the data sets in a dataverse.
+
+.DESCRIPTION
+This cmdlet enumerates all children of a given dataverse and if said children
+are data sets, the details of these data sets are retrieved and returned. In
+contrast to the plain API calls, this cmdlet supports enumerating data sets
+that are recursive children of a given dataverse.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies an existing dataverse to retrieve the data
+sets for.
+
+.PARAMETER Uri
+The Uri parameter specifies the URI of an existing dataverse to retrieve the
+data sets for.
+
+.PARAMETER Credential
+The Credential parameter provides the API token to connect to the dataverse
+API.
+
+.PARAMETER Recurse
+The Recurse switch instructs the cmdlet to recursively retrieve the data sets
+in all child dataverses. By default, the API returns only data sets that
+are directly in the dataverse requested. This behaivour can be overriden by
+this switch.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+All data sets in the given dataverse.
+
+.EXAMPLE
+Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+
+.EXAMPLE
+Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-ChildDataverse
+#>
+function Get-DataSet {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+
+    param(
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+        [PSCredential] $Credential,
+        [switch] $Recurse
+    )
+
+    begin { }
+
+    process {
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = "$($params[0].AbsoluteUri)/contents"
+        $Credential = $params[1]
+
+        $p = $params[0].Segments | Select-Object -First ($params[0].Segments.Count - 2)
+        $p += 'datasets'
+        $baseUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"
+
+        if ($PSCmdlet.ShouldProcess($Uri, 'GET')) {
+            # Retrieve and emit immediate content of the given dataverse. Note
+            # that the enumeration of children does not yield all the data we
+            # are interested (namely versions), so we request that in additional
+            # calls.
+            Invoke-DataverseRequest -Uri $Uri -Credential $Credential `
+                | Where-Object { $_.type -imatch '^dataset$' } `
+                | ForEach-Object { `
+                    Invoke-DataverseRequest "$baseUri/$($_.id)" -Credential $Credential }
+
+            # If requested, retrieve contents of children recursively.
+            if ($Recurse) {
+                Get-ChildDataverse -Uri $params[0] -Credential $Credential -Recurse `
+                    | ForEach-Object { Get-DataSet -Dataverse $_ }
+            }
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
+Retrieves the metadata of a dataverse.
+
+.DESCRIPTION
+Retrieves a dataverse object via its API URL. The resulting object can be used
+to manipulate the dataverse by means of the other dataverse-related cmdlets.
+
+.PARAMETER Uri
+The Uri parameter specifies the URL of the Dataverse to get the properties of.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored.
+
+.EXAMPLE
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+#>
+function Get-Dataverse {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+    param(
+        [Parameter(Mandatory)] [System.Uri] $Uri,
+        [Parameter(Mandatory)] [PSCredential] $Credential
+    )
+
+    begin { }
+
+    process {
+        if ($PSCmdlet.ShouldProcess($Uri, 'GET')) {
+            Invoke-DataverseRequest -Uri $Uri -Credential $Credential
         }
     }
 
@@ -127,35 +320,24 @@ Get-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Creden
 function Get-DataverseRole {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
     param(
-        [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
         [PSCredential] $Credential
     )
 
-    begin {
-        switch ($PSCmdlet.ParameterSetName) {
-            "Dataverse" {
-                 $Uri = [Uri]::new($Dataverse.RequestUri)
-                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
-
-                 if (!$Credential) {
-                    $Credential = $Dataverse.Credential
-                    Write-Verbose "Using credential from existing Dataverse."
-                }                 
-            }
-            default { <# Nothing to do. #> }
-        }
-
-        $uri = "$($Uri.AbsoluteUri)/assignments"
-     }
+    begin { }
 
     process {
-        Write-Verbose "Retrieving role assignments for `"$Uri`"."
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = "$($params[0].AbsoluteUri)/assignments"
+        $Credential = $params[1]
 
-        if ($PSCmdlet.ShouldProcess($uri, "POST")) {
-            Invoke-DataverseRequest -Uri $uri `
+        Write-Verbose "Retrieving role assignments for `"$Credential`"."
+
+        if ($PSCmdlet.ShouldProcess($Credential, "POST")) {
+            Invoke-DataverseRequest -Uri $Credential `
                 -Credential $Credential `
                 -Method Get
         }
@@ -167,35 +349,72 @@ function Get-DataverseRole {
 
 <#
 .SYNOPSIS
-Retrieves the metadata of a Dataverse.
+Adds a new Dataverse below the given one.
 
 .DESCRIPTION
-Retrieves a dataverse object via its API URL. The resulting object can be used
-to manipulate the dataverse by means of the other dataverse-related cmdtlets.
+Creates a new Dataverse either as child of the dataverse specified by the given
+API URI or as child of a Dataverse object. The properties of the Dataverse
+will be initialised with an object obtained from New-DataverseDescriptor, which
+can also be piped into the cmdlet.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the parent of the Dataverse to be created. If
+a Dataverse object is specified, the Credential parameter can be omitted and
+the credential attached to the Dataverse object will be used.
 
 .PARAMETER Uri
-The Uri parameter specifies the URL of the Dataverse to get the properties of.
+The Uri parameter specifies the URI of the parent Dataverse of the Dataverse
+to be created.
+
+.PARAMETER Description
+The Description parameter specifies the properties of the Dataverse to be
+created.
 
 .PARAMETER Credential
 The Credential parameter specifies the API token as password. The user name is
-ignored.
+ignored. The Credential parameter can be omitted if a Dataverse is specified as
+parent.
+
+.INPUTS
+The descriptor of the new Dataverse can be piped into the cmdlet.
+
+.OUTPUTS
+The descriptor of the newly created Dataverse is returned to the pipeline.
 
 .EXAMPLE
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+New-DataverseDescriptor -Alias "test" -Name "Test" -Contact "test@test.com" | New-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token)
 #>
-function Get-Dataverse {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+function New-Dataverse {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
     param(
-        [Parameter(Mandatory, Position = 0)] [System.Uri] $Uri,
-        [Parameter(ParameterSetName = "Credential", Mandatory, Position = 1)]
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0)]
+        [PSObject] $Dataverse,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [PSObject] $Description,
         [PSCredential] $Credential
     )
 
     begin { }
 
     process {
-        if ($PSCmdlet.ShouldProcess($Uri, "GET")) {
-            Invoke-DataverseRequest -Credential $Credential -Uri $Uri
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = $params[0]
+        $Credential = $params[1]
+
+        $p = $Uri.Segments | Select-Object -First ($Uri.Segments.Count - 1)
+        $p += $Description.alias
+        $requestUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"
+        Write-Verbose "URI of Dataverse being created will be `"$requestUri`"."
+
+        if ($PSCmdlet.ShouldProcess($Uri, 'POST')) {
+            Invoke-DataverseRequest -Uri $Uri `
+                -Credential $Credential `
+                -Method Post `
+                -ContentType 'application/json' `
+                -Body ($Description | ConvertTo-Json) `
+                -RequestUri $requestUri
         }
     }
 
@@ -282,85 +501,6 @@ function New-DataverseDescriptor {
 }
 
 
-
-<#
-.SYNOPSIS
-Adds a new Dataverse below the given one.
-
-.DESCRIPTION
-Creates a new Dataverse either as child of the dataverse specified by the given
-API URI or as child of a Dataverse object. The properties of the Dataverse
-will be initialised with an object obtained from New-DataverseDescriptor, which
-can also be piped into the cmdlet.
-
-.PARAMETER Dataverse
-The Dataverse parameter specifies the parent of the Dataverse to be created. If
-a Dataverse object is specified, the Credential parameter can be omitted and
-the credential attached to the Dataverse object will be used.
-
-.PARAMETER Uri
-The Uri parameter specifies the URI of the parent Dataverse of the Dataverse
-to be created.
-
-.PARAMETER Description
-The Description parameter specifies the properties of the Dataverse to be
-created.
-
-.PARAMETER Credential
-The Credential parameter specifies the API token as password. The user name is
-ignored. The Credential parameter can be omitted if a Dataverse is specified as
-parent.
-
-.INPUTS
-The descriptor of the new Dataverse can be piped into the cmdlet.
-
-.OUTPUTS
-The descriptor of the newly created Dataverse is returned to the pipeline.
-
-.EXAMPLE
-New-DataverseDescriptor -Alias "test" -Name "Test" -Contact "test@test.com" | New-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token)
-#>
-function New-Dataverse {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
-    param(
-        [Parameter(ParameterSetName = "Dataverse", Mandatory)]
-        [PSObject] $Dataverse,
-        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
-        [System.Uri] $Uri,
-        [Parameter(Mandatory, ValueFromPipeline)] [PSObject] $Description,
-        [PSCredential] $Credential
-    )
-
-    begin {
-        switch ($PSCmdlet.ParameterSetName) {
-            "Dataverse" {
-                 $Uri = [Uri]::new($Dataverse.RequestUri)
-                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
-            }
-            default { <# Nothing to do. #> }
-        }
-     }
-
-    process {
-        $p = $Uri.Segments | Select-Object -First ($Uri.Segments.Count - 1)
-        $p += $Description.alias
-        $requestUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"
-        Write-Verbose "URI of Dataverse being created will be `"$requestUri`"."
-
-        if ($PSCmdlet.ShouldProcess($Uri, "POST")) {
-            Invoke-DataverseRequest -Uri $Uri `
-                -Credential $Credential `
-                -Method Post `
-                -ContentType "application/json" `
-                -Body ($Description | ConvertTo-Json) `
-                -RequestUri $requestUri
-        }
-    }
-
-    end { }
-}
-
-
 <#
 .SYNOPSIS
 Removes the given Dataverse.
@@ -392,27 +532,18 @@ Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgar
 function Remove-Dataverse {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
     param(
-        [Parameter(ParameterSetName = "Dataverse", Mandatory, ValueFromPipeline)]
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
-        [Parameter(ParameterSetName = "Uri", Mandatory)] [System.Uri] $Uri,
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)] [System.Uri] $Uri,
         [PSCredential] $Credential
     )
 
     begin { }
 
     process {
-        switch ($PSCmdlet.ParameterSetName) {
-            "Dataverse" {
-                 $Uri = [Uri]::new($Dataverse.RequestUri)
-                 Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
-
-                 if (!$Credential) {
-                    $Credential = $Dataverse.Credential
-                    Write-Verbose "Using credential from existing Dataverse."
-                }
-            }
-            default { <# Nothing to do. #> }
-        }
+        $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+        $Uri = $params[0]
+        $Credential = $params[1]
 
         if ($PSCmdlet.ShouldProcess($Uri, "DELETE")) {
             Invoke-DataverseRequest -Uri $Uri `

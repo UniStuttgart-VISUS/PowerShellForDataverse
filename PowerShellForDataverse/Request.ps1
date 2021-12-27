@@ -51,25 +51,26 @@ as part of the result object. If this parameter is not set, Uri is used.
 This is an internal utility function.
 
 .INPUTS
-This cmdlet does not accept input from the pipline.
+This function does not accept input from the pipline.
 
 .OUTPUTS
 The object returned by the Dataverse API.
 #>
 function Invoke-DataverseRequest {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingCmdletAliases",
-         "", Justification = "Everyone who would look into this knows %.")]
-   
     param(
-        [System.Uri] $Uri,
+        [Parameter(Mandatory)] [System.Uri] $Uri,
         [Parameter(Mandatory)] [PSCredential] $Credential,
-        [Microsoft.PowerShell.Commands.WebRequestMethod] $Method = "Get",
-        [string] $ContentType,
+        [Microsoft.PowerShell.Commands.WebRequestMethod] $Method = 'GET',
+        [string] $ContentType = 'application/json',
         $Body,
         [string] $RequestUri
     )
 
     begin {
+        if (-not $Uri.PathAndQuery.StartsWith('/api', 'InvariantCultureIgnoreCase')) {
+            Write-Warning "The request URI `"$Uri`" does not start with an API path, which is most likely a mistake."
+        }
+
         if (!$RequestUri) {
             $RequestUri = $Uri
         }
@@ -83,10 +84,75 @@ function Invoke-DataverseRequest {
             -ContentType $ContentType `
             -Body $Body `
         | ConvertFrom-Json `
-        | %{ $_.data `
+        | ForEach-Object { $_.data `
             | Add-Member "RequestUri" -NotePropertyValue $RequestUri -PassThru `
             | Add-Member "Credential" -NotePropertyValue $Credential -PassThru }
     }
 
     end { }
+}
+
+
+<#
+.SYNOPSIS
+Pre-processes the common parameters specifying the dataverse we are working on.
+
+.DESCRIPTION
+The cmdlets in the module mostly accept two parameter sets, the first one being
+accepting a dataverse object obtained from another API call, the second one
+accepting a URI and credentials to connect. This function normalises both
+parameter sets into an array of the URI and the credentials.
+
+.PARAMETER ParameterSet
+The ParameterSet is the name of the parameter set the function should process.
+This should always be $PSCmdlet.ParameterSetName. If this parameter is
+"Dataverse", the Dataverse parameter is used to obtain the URI and credential.
+
+.PARAMETER Dataverse
+The Dataverse parameter holds the dataverse object to retrieve the URI and the
+credential from. It is only used if the ParameterSet parameter is set to
+"Dataverse".
+
+.PARAMETER Uri
+The URI parameter holds the URI of a dataverse.
+
+.PARAMETER Credential
+The Credential parameter holds the API token to be used for connecting to a
+dataverse.
+
+.NOTES
+This is an internal utility function.
+
+.INPUTS
+This function does not accept input from the pipline.
+
+.OUTPUTS
+An array holding the normalised URI and the credential (in this order).
+#>
+function Split-RequestParameters {
+    param(
+        [Parameter(Mandatory)] [string] $ParameterSet,
+        [PSObject] $Dataverse,
+        [System.Uri] $Uri,
+        [PSCredential] $Credential
+    )
+
+    switch ($ParameterSet) {
+        "Dataverse" {
+            if (-not $Dataverse) {
+                throw "The Dataverse parameter is mandatory for the parameter set `"$ParameterSet`"."
+            }
+
+            $Uri = [Uri]::new($Dataverse.RequestUri)
+            Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
+
+             if (!$Credential) {
+                 $Credential = $Dataverse.Credential
+                 Write-Verbose "Using credential from existing Dataverse."
+            }                 
+        }
+        default { <# Nothing to do. #> }
+    }
+
+    return $Uri, $Credential
 }
