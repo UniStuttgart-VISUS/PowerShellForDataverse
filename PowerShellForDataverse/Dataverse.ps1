@@ -204,6 +204,9 @@ Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.
 
 .EXAMPLE
 Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-ChildDataverse
+
+.EXAMPLE
+Get-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential (Get-Credential token) | Get-DataSet -Recurse | ?{ $_.latestVersion.versionState -eq 'RELEASED' }
 #>
 function Get-DataSet {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]

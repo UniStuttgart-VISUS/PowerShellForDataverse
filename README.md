@@ -20,6 +20,20 @@ $parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Cre
 $child = (New-DataverseDescriptor -Alias "visus_test" -Name "Test" -Contact "test@test.com" | New-Dataverse $parent)
 ```
 
+### Retrieve all child dataverses
+```powershell
+$cred = Get-Credential token
+$parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
+Get-ChildDataverse -Dataverse $parent
+```
+
+### Retrieve all data sets
+```powershell
+$cred = Get-Credential token
+$parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
+Get-Dataset -Dataverse $parent -Recurse
+```
+
 ### Delete a Dataverse
 ```powershell
 $cred = Get-Credential token
