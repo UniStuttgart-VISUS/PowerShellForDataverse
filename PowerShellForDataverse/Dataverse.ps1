@@ -31,7 +31,7 @@ ignored. The Credential parameter can be omitted if a Dataverse object is
 specified as input.
 
 .PARAMETER Principal
-The Assignee parameter specifies the name of the user or group which receives
+The Principal parameter specifies the name of the user or group which receives
 the specified role.
 
 .PARAMETER Role
@@ -51,11 +51,17 @@ function Add-DataverseRole {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
+
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
         [PSCredential] $Credential,
+
         [Parameter(Mandatory)]
         [String] $Principal,
+
         [Parameter(Mandatory)]
         [String] $Role
     )
@@ -130,9 +136,14 @@ function Get-ChildDataverse {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
+        
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
         [PSCredential] $Credential,
+
         [switch] $Recurse
     )
 
@@ -214,9 +225,14 @@ function Get-DataSet {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
+
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
         [PSCredential] $Credential,
+
         [switch] $Recurse
     )
 
@@ -325,8 +341,12 @@ function Get-DataverseRole {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
+
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]              
         [PSCredential] $Credential
     )
 
@@ -369,14 +389,14 @@ the credential attached to the Dataverse object will be used.
 The Uri parameter specifies the URI of the parent Dataverse of the Dataverse
 to be created.
 
-.PARAMETER Description
-The Description parameter specifies the properties of the Dataverse to be
-created.
-
 .PARAMETER Credential
 The Credential parameter specifies the API token as password. The user name is
 ignored. The Credential parameter can be omitted if a Dataverse is specified as
 parent.
+
+.PARAMETER Description
+The Description parameter specifies the properties of the Dataverse to be
+created.
 
 .INPUTS
 The descriptor of the new Dataverse can be piped into the cmdlet.
@@ -392,11 +412,16 @@ function New-Dataverse {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0)]
         [PSObject] $Dataverse,
+
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]        
+        [PSCredential] $Credential,
+
         [Parameter(Mandatory, ValueFromPipeline)]
-        [PSObject] $Description,
-        [PSCredential] $Credential
+        [PSObject] $Description
     )
 
     begin { }
@@ -537,7 +562,12 @@ function Remove-Dataverse {
     param(
         [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
         [PSObject] $Dataverse,
-        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)] [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Dataverse", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
         [PSCredential] $Credential
     )
 
@@ -556,4 +586,114 @@ function Remove-Dataverse {
     }
 
     end { }
+}
+
+
+<#
+.SYNOPSIS
+Removes a role assignment from a dataverse.
+
+.DESCRIPTION
+Removes assignment of a role to a user from a dataverse. The removal can either
+be based on the assignment object obtained from Get-DataverseRole or from the
+definition of the assignment from the user principal and the name of the role.
+
+.PARAMETER Assignment
+The Assignment parameter is the description of a role assignment as retrieved
+from the Get-DataverseRole cmdlet. This parameter also specifies the credential
+for the connection unless specified explicitly by the Credential parameter.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the Dataverse from which the role assignment
+should be removed. This parameter also specifies the credential for the
+connection unless specified explicitly by the Credential parameter.
+
+.PARAMETER Uri
+The Uri parameter specifies the URI of the Dataverse from which the role
+assignment should be removed.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored. The Credential parameter can be omitted if a Dataverse object is
+specified as input.
+
+.PARAMETER Principal
+The Principal parameter specifies the name of the user or group for which the
+assignment should be removed.
+
+.PARAMETER Role
+The Role parameter specifies the name of the role to be removed.
+
+.INPUTS
+The Assignment parameter and the Dataverse parameter can be piped into the
+cmdlet.
+
+.OUTPUTS
+A confirmation of the successful operation.
+
+.EXAMPLE
+Remove-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) -Principal '@user' -Role curator
+
+.EXAMPLE
+Get-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) | ?{ $_.assignee -eq '@user' } | Remove-DataverseRole
+#>
+function Remove-DataverseRole {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
+    param(
+        [Parameter(ParameterSetName = "Assignment", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Assignment,
+
+        [Parameter(ParameterSetName = "Dataverse", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Assignment")]
+        [Parameter(ParameterSetName = "Dataverse")]
+        [Parameter(ParameterSetName = "Uri", Mandatory)]
+        [PSCredential] $Credential,
+
+        [Parameter(ParameterSetName = "Dataverse", Mandatory)]
+        [Parameter(ParameterSetName = "Uri", Mandatory)]
+        [String] $Principal,
+
+        [Parameter(ParameterSetName = "Dataverse", Mandatory)]
+        [Parameter(ParameterSetName = "Uri", Mandatory)]
+        [String] $Role
+    )
+
+    begin { }
+
+    process {
+        switch ($PSCmdlet.ParameterSetName) {
+            "Assignment" {
+                $Uri = [Uri]::new("$($Assignment.RequestUri)/$($Assignment.id)")
+                Write-Verbose "Using request URI `"$Uri`" from existing role assignment."
+    
+                if (!$Credential) {
+                     $Credential = $Assignment.Credential
+                     Write-Verbose "Using credential from existing role assignment."
+                }    
+
+                if ($PSCmdlet.ShouldProcess($Uri, "DELETE")) {
+                    Invoke-DataverseRequest -Uri $Uri `
+                        -Credential $Credential `
+                        -Method Delete
+                }                
+            }
+
+            default {
+                $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
+                $Uri = $params[0]
+                $Credential = $params[1]
+
+                Get-DataverseRole -Uri $Uri -Credential $Credential `
+                    | Where-Object { ($_.assignee -eq $Principal) -and ($_._roleAlias -eq $Role) } `
+                    | ForEach-Object { Remove-DataverseRole -Assignment $_ }
+            }
+        }
+    }
+
+    end { } 
 }

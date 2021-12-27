@@ -52,6 +52,12 @@ $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Add-DataverseRole -Principal '@user' -Role 'curator'   
 ```
 
+### Remove permissions on a Dataverse
+```powershell
+$cred = Get-Credential token
+Get-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | ?{ $_.assignee -eq '@user' } | Remove-DataverseRole
+```
+
 ### Delete a Dataverse
 ```powershell
 $cred = Get-Credential token
