@@ -14,7 +14,8 @@ $path = Split-Path -Parent $path
 $path = Join-Path -Path $path -ChildPath 'PowerShellForDataverse'
 $path = Join-Path -Path $path -ChildPath 'PowerShellForDataverse.psd1'
 
-$functions = 'Add-DataverseRole', `
+$functions = `
+    'Add-DataverseRole', `
     'Get-ChildDataverse', `
     'Get-DataSet', `
     'Get-Dataverse', `
