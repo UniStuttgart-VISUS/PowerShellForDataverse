@@ -43,8 +43,13 @@ Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $c
 ### Retrieve permissions on a Dataverse
 ```powershell
 $cred = Get-Credential token
-Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential $prodcred | Get-DataverseRole
-Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential $prodcred | Get-ChildDataverse -Recurse | Get-DataverseRole
+Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Get-DataverseRole
+```
+
+### Assign permissions on a Dataverse
+```powershell
+$cred = Get-Credential token
+Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Add-DataverseRole -Principal '@user' -Role 'curator'   
 ```
 
 ### Delete a Dataverse
