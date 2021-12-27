@@ -34,6 +34,12 @@ $parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Cre
 Get-Dataset -Dataverse $parent -Recurse
 ```
 
+### Retrieve all data sets that have been published
+```powershell
+$cred = Get-Credential token
+Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Get-DataSet -Recurse | ?{ $_.latestVersion.versionState -eq 'RELEASED' }
+```
+
 ### Delete a Dataverse
 ```powershell
 $cred = Get-Credential token
