@@ -489,23 +489,38 @@ function New-DataverseKeyword {
 
         switch ($PSCmdlet.ParameterSetName) {
             'CustomVocabulary' {
-                $retval | Add-Member -NotePropertyName 'keywordVocabulary' -NotePropertyValue $VocabularyName
+                $values = @{
+                    'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value $VocabularyName)
+                }
 
                 if ($VocabularyUri) {
-                    $value = (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value $VocabularyUri)
-                    $retval | Add-Member -NotePropertyName 'keywordVocabularyURI' -NotePropertyValue $value
+                    $values['keywordVocabularyURI'] = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value $VocabularyUri)
                 }
+
+                $retval | Add-Member -NotePropertyMembers $values
             }
 
             'BuiltinVocabulary' {
                 switch ($Vocabulary) {
-                    Lcsh {
-                        $retval | Add-Member -NotePropertyName 'keywordVocabulary' -NotePropertyValue 'LCSH'
-                        $retval | Add-Member -NotePropertyName 'keywordVocabularyURI' -NotePropertyValue 'https://id.loc.gov/authorities/subjects.html'
+                    Gnd {
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'GND-Sachgruppen')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html')
+                        }
                     }
+
+                    Lcsh {
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'LCSH')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://id.loc.gov/authorities/subjects.html')
+                        }                        
+                    }
+                    
                     Mesh {
-                        $retval | Add-Member -NotePropertyName 'keywordVocabulary' -NotePropertyValue 'MeSH'
-                        $retval | Add-Member -NotePropertyName 'keywordVocabularyURI' -NotePropertyValue 'https://www.nlm.nih.gov/mesh/meshhome.html'
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'MeSH')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://www.nlm.nih.gov/mesh/meshhome.html')
+                        }                        
                     }
                     default {
                         throw 'The specified built-in vocabulary is invalid.'
