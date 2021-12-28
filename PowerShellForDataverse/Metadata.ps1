@@ -8,7 +8,6 @@
 #
 
 
-
 <#
 .SYNOPSIS
 Creates a new metadata field.
@@ -42,33 +41,33 @@ function New-DataverseMetadataField {
         [Parameter(Mandatory)] $Value
     )
 
-    begin {
-        $multiple = ($Value -is [array]) 
-    }
+    begin { }
 
     process {
+        $multiple = ($Value -is [array])
+
         if ($multiple) {
             if ($Value.count -lt 1) {
-                throw "At least one element needs to be in an array value."
+                throw 'At least one element needs to be in an array value.'
             }
 
             if ($Value[0] -is [PsObject]) {
-                $typeClass = "compound"
+                $typeClass = 'compound'
             } else {
-                $typeClass = "primitive"
+                $typeClass = 'primitive'
             }
             
         } else {
             if ($Value -is [PsObject]) {
-                $typeClass = "compound"
+                $typeClass = 'compound'
             } else {
-                $typeClass = "primitive"
+                $typeClass = 'primitive'
             }
         }
 
         # TODO: typeClass 'controlledVocabulary'
 
-        $retval = [PSCustomObject]@{
+        [PSCustomObject]@{
             'multiple' = $multiple;
             'typeClass' = $typeClass;
             'typeName' = $Name;
@@ -76,9 +75,7 @@ function New-DataverseMetadataField {
         }
     }
 
-    end {
-        return $retval;
-    }
+    end { }
 }
 
 
@@ -101,6 +98,10 @@ or otherwise affiliated with.
 
 .PARAMETER Orcid
 The Orcid parameter specifies the ORCID of an author.
+
+.NOTES
+This cmdlet is only intended for internal use. Use New-DataverseCitationMetadata
+and Add-Author to create new author records.
 
 .INPUTS
 This cmdlet does not accept input from the pipline.
@@ -144,7 +145,81 @@ function New-DataverseAuthor {
 
 <#
 .SYNOPSIS
+Adds a new author to a citation metadata block.
+
+.DESCRIPTION
+When creating a citation metadata block using the New-DataverseCitationMetadata
+cmdlet, only one author must and can be specified. You can use this cmdlet to
+add additional authors to the metadata block.
+
+.PARAMETER CitationMetadata
+The CitationMetadata parameter is the custom object representing the metadata
+block which to the author is added.
+
+.PARAMETER Surname
+The Surname parameter specifies the family name of an author.
+
+.PARAMETER ChristianName
+The ChrisianName parameter specifies the Christian name of an author.
+
+.PARAMETER Affiliation
+The Affiliation parameter specifies the organisation an author is working for
+or otherwise affiliated with.
+
+.PARAMETER Orcid
+The Orcid parameter specifies the ORCID of an author.
+
+.PARAMETER PassThru
+The PassThru switch instructs the cmdlet to return the CitationMetadata, which
+allwows for chaining the addition of authors.
+
+.INPUTS
+This cmdlet does not accept input from the pipline.
+
+.OUTPUTS
+An PSCustomObject holding the metadata of a single author.
+#>
+function Add-CitationMetadataAuthor {
+    param(
+        [Parameter(Mandatory, ValueFromPipeline)] [PsObject] $CitationMetadata,
+        [Parameter(Mandatory)] [string] $Surname,
+        [Parameter(Mandatory)] [string] $ChristianName,
+        [string] $Affiliation,
+        [string] $Orcid,
+        [switch] $PassThru
+    )
+
+    begin {
+        # The author object would always be the same, even if multiple metadata
+        # blocks are piped to the cmdlet, so we can prepare it once.
+        $author = New-DataverseAuthor -Surname $Surname `
+            -ChristianName $ChristianName `
+            -Affiliation $Affiliation `
+            -Orcid $Orcid
+    }
+
+    process {
+        $CitationMetadata.fields | Where-Object { $_.typeName -eq 'author' } `
+            | ForEach-Object { $_.value += $author }
+
+        if ($PassThru) {
+            $CitationMetadata
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
 Creates a new object representing a citation metadata block in Dataverse.
+
+.DESCRIPTION
+This cmdlet helps you creating a custom PSObject representing the citation
+metadata block of a data set. This citation metadata is typically mandatory
+for any data set as it contains the bare minimum of information for identifying
+a data set.
 #>
 function New-DataverseCitationMetadata {
     param(
@@ -153,7 +228,10 @@ function New-DataverseCitationMetadata {
         [string] $AlternativeTitle,
         [string] $AlternativeUrl,
         <# otherId #>
-        [Parameter(Mandatory)] [PsObject[]] $Authors,
+        [Parameter(Mandatory)] [string] $AuthorSurname,
+        [Parameter(Mandatory)] [string] $AuthorChristianName,
+        [string] $AuthorAffiliation,
+        [string] $AuthorOrcid,
         [Parameter(Mandatory)] [string] $ContactSurname,
         [Parameter(Mandatory)] [string] $ContactChristianName,
         [string] $ContactAffiliation,
@@ -190,18 +268,21 @@ function New-DataverseCitationMetadata {
     )
 
     begin {
-        if ($Authors.Count -lt 1) {
-            throw "At least one author needs to be provided."
-        }
         if ($Description.Count -lt 1) {
             throw "At least one description needs to be provided."
         }
 
-        $date = (Get-Date -f 'yyyy-MM-dd')
+        $date = [string]::Format('{0:yyyy-MM-dd}', (Get-Date))
         $fields = @()
      }
 
     process {
+        # Create the compound field for the first data set author.
+        $author = New-DataverseAuthor -Surname $AuthorSurname `
+            -ChristianName $AuthorChristianName `
+            -Affiliation $AuthorAffiliation `
+            -Orcid $AuthorOrcid
+
         # Create the compound field for the data set contact.
         $contact = [PSCustomObject] @{
             'datasetContactName' = "$ContactSurname, $ContactChristianName";
@@ -214,8 +295,8 @@ function New-DataverseCitationMetadata {
         # Create the array of description compunds.
         $descriptions = @($Description | ForEach-Object {
             [PSCustomObject] @{
-                'dsDescriptionValue' = (New-DataverseMetadataField -Name 'dsDescriptionValue' -Value $_);
-                'dsDescriptionDate' = (New-DataverseMetadataField -Name 'dsDescriptionDate' -Value $date);
+                'dsDescriptionValue' = (New-DataverseMetadataField -Name 'dsDescriptionValue' -Value ([string] $_));
+                'dsDescriptionDate' = (New-DataverseMetadataField -Name 'dsDescriptionDate' -Value ([string] $date));
             }
         })
 
@@ -233,7 +314,7 @@ function New-DataverseCitationMetadata {
             $fields += New-DataverseMetadataField -Name 'alternativeURL' -Value $AlternativeUrl
         }
 
-        $fields += New-DataverseMetadataField -Name 'author' -Value $Authors
+        $fields += New-DataverseMetadataField -Name 'author' -Value @($author)
         $fields += New-DataverseMetadataField -Name 'datasetContact' -Value @($contact)
         $fields += New-DataverseMetadataField -Name 'dsDescription' -Value $descriptions
 
@@ -246,7 +327,7 @@ function New-DataverseCitationMetadata {
         }
 
         if ($ProductionDate) {
-            $value = $ProductionDate -f 'yyyy-MM-dd'
+            $value = [string]::Format('{0:yyyy-MM-dd}', $ProductionDate)
             $fields += New-DataverseMetadataField -Name 'productionDate' -Value $value
         }
 
@@ -255,14 +336,14 @@ function New-DataverseCitationMetadata {
         }
 
         if ($DistributionDate) {
-            $value = ($DistributionDate -f 'yyyy-MM-dd')
+            $value = [string]::Format('{0:yyyy-MM-dd}', $DistributionDate -f 'yyyy-MM-dd')
             $fields += New-DataverseMetadataField -Name 'distributionDate' -Value $value
         }
         
         $fields += New-DataverseMetadataField -Name 'depositor' -Value "$DepositorSurname, $DepositorChristianName"
         
         if ($DepositDate) {
-            $value = ($DepositDate -f 'yyyy-MM-dd')
+            $value = [string]::Format('{0:yyyy-MM-dd}', $DepositDate)
             $fields += New-DataverseMetadataField -Name 'dateOfDeposit' -Value $value
         }
 
@@ -350,16 +431,14 @@ function New-DataverseDataSetDescriptor {
     begin { }
 
     process {
-        $retval = New-Object PSObject -Property @{
-            license = 'Citation Metadata';
-            termsOfUse = $fields;
+        New-Object PSObject -Property @{
+            license = $Licence;
+            termsOfUse = $Terms;
             metadataBlocks = $MetadataBlocks;
         }
     }
 
-    end {
-        return $retval;
-    }
+    end { }
 }
 
 
@@ -395,7 +474,7 @@ New-DataverseKeyword -Value "Neckar River (Germany)" -VocabularyName "LCSH" -Voc
 #>
 function New-DataverseKeyword {
     param(
-        [Parameter(Mandatory, ValueFromPipeline, Position = 0)] [string] [string] $Value,
+        [Parameter(Mandatory, ValueFromPipeline, Position = 0)] [string] $Value,
         [Parameter(ParameterSetName = "CustomVocabulary", Mandatory)] [string] $VocabularyName,
         [Parameter(ParameterSetName = "CustomVocabulary")] [string] $VocabularyUri,
         [Parameter(ParameterSetName = "BuiltinVocabulary", Mandatory)] [KeywordVocabulary] $Vocabulary
@@ -436,9 +515,9 @@ function New-DataverseKeyword {
 
             default { <# Nothing to do. #> }
         }
+
+        $retval
     }
 
-    end {
-        return $retval
-    }
+    end { }
 }
