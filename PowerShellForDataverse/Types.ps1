@@ -8,13 +8,10 @@
 #
 
 
-# Make sure that WebRequestMethod is available.
-Add-Type -AssemblyName Microsoft.PowerShell.Commands.Utility
-
-
 # Possible values for built-in keyword vocabularies.
 Add-Type -TypeDefinition @"
 public enum KeywordVocabulary {
+    Gnd,
     Lcsh,
     Mesh,
 }

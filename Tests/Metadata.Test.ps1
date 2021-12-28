@@ -408,5 +408,77 @@ Describe 'New-DataverseCitationMetadata' {
             $author.authorName.typeClass | Should Be 'primitive'
         }        
     }    
- 
+}
+
+Describe 'New-DataverseKeyword' {
+    It 'Custom' {
+        $keyword = (New-DataverseKeyword -Value 'Test' -VocabularyName 'Test Vocabulary')
+
+        $keyword.keywordValue.typeName | Should Be 'keywordValue'
+        $keyword.keywordValue.value | Should Be 'Test'
+        $keyword.keywordValue.multiple | Should Be $false
+        $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+        $keyword.keywordVocabulary.value | Should Be 'Test Vocabulary'
+        $keyword.keywordVocabulary.multiple | Should Be $false
+        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+    }
+
+    It 'GND-Sachgruppen' {
+        $keyword = (New-DataverseKeyword -Value 'Informatik, Datenverarbeitung' -Vocabulary Gnd)
+
+        $keyword.keywordValue.typeName | Should Be 'keywordValue'
+        $keyword.keywordValue.value | Should Be 'Informatik, Datenverarbeitung'
+        $keyword.keywordValue.multiple | Should Be $false
+        $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+        $keyword.keywordVocabulary.value | Should Be 'GND-Sachgruppen'
+        $keyword.keywordVocabulary.multiple | Should Be $false
+        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+        $keyword.keywordVocabularyURI.value | Should Be 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html'
+        $keyword.keywordVocabularyURI.multiple | Should Be $false
+        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'        
+    }
+
+    It 'LCSH' {
+        $keyword = (New-DataverseKeyword -Value 'Neckar River (Germany)' -Vocabulary Lcsh)
+
+        $keyword.keywordValue.typeName | Should Be 'keywordValue'
+        $keyword.keywordValue.value | Should Be 'Neckar River (Germany)'
+        $keyword.keywordValue.multiple | Should Be $false
+        $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+        $keyword.keywordVocabulary.value | Should Be 'LCSH'
+        $keyword.keywordVocabulary.multiple | Should Be $false
+        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+        $keyword.keywordVocabularyURI.value | Should Be 'https://id.loc.gov/authorities/subjects.html'
+        $keyword.keywordVocabularyURI.multiple | Should Be $false
+        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
+    }
+
+    It 'MeSH' {
+        $keyword = (New-DataverseKeyword -Value 'Aspirin' -Vocabulary Mesh)
+
+        $keyword.keywordValue.typeName | Should Be 'keywordValue'
+        $keyword.keywordValue.value | Should Be 'Aspirin'
+        $keyword.keywordValue.multiple | Should Be $false
+        $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+        $keyword.keywordVocabulary.value | Should Be 'MeSH'
+        $keyword.keywordVocabulary.multiple | Should Be $false
+        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+        $keyword.keywordVocabularyURI.value | Should Be 'https://www.nlm.nih.gov/mesh/meshhome.html'
+        $keyword.keywordVocabularyURI.multiple | Should Be $false
+        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
+    }    
 }
