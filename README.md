@@ -7,59 +7,84 @@ Copy the `PowerShellForDataverse` directory and all of its contents into one of 
 ## Usage
 The [Dataverse Native API](http://guides.dataverse.org/en/latest/api/native-api.html) is a web API based on JSON input and output. All JSON output is converted into `PSObject`s such that you can perform the usual pipeline operations on them. Whenever JSON input is required, PowerShellForDataverse provides a cmdlet for constructing the input object. The following samples show how the currenly available cmdlets in PowerShellForDataverse are used:
 
-### Retrieve description of a Dataverse
+### Working with dataverse
+#### Retrieve description of a dataverse
 ```powershell
 $cred = Get-Credential token
 $dataverse = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
 ```
 
-### Add a new Dataverse
+#### Add a new dataverse
 ```powershell
 $cred = Get-Credential token
 $parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
 $child = (New-DataverseDescriptor -Alias "visus_test" -Name "Test" -Contact "test@test.com" | New-Dataverse $parent)
 ```
 
-### Retrieve all child dataverses
+#### Retrieve all child dataverses
 ```powershell
 $cred = Get-Credential token
 $parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
 Get-ChildDataverse -Dataverse $parent
 ```
 
-### Retrieve all data sets
+#### Retrieve all data sets in a dataverse
 ```powershell
 $cred = Get-Credential token
 $parent = Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred
 Get-Dataset -Dataverse $parent -Recurse
 ```
 
-### Retrieve all data sets that have been published
+#### Retrieve all data sets that have been published
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Get-DataSet -Recurse | ?{ $_.latestVersion.versionState -eq 'RELEASED' }
 ```
 
-### Retrieve permissions on a Dataverse
+#### Retrieve permissions on a Dataverse
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Get-DataverseRole
 ```
 
-### Assign permissions on a Dataverse
+#### Assign permissions on a dataverse
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Add-DataverseRole -Principal '@user' -Role 'curator'   
 ```
 
-### Remove permissions on a Dataverse
+#### Revoke permissions from a dataverse
 ```powershell
 $cred = Get-Credential token
 Get-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | ?{ $_.assignee -eq '@user' } | Remove-DataverseRole
 ```
 
-### Delete a Dataverse
+#### Delete a dataverse
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse https://darus.uni-stuttgart.de/api/dataverses/visus -Credential $cred | Remove-Dataverse
+```
+
+### Working with data sets
+#### Create a new data set
+```powershell
+$cred = Get-Credential token
+$citation = New-DataverseCitationMetadata `
+        -Title 'My Data set' `
+        -AuthorSurname 'King' `
+        -AuthorChristianName 'Don' `
+        -ContactSurname 'King' `
+        -ContactChristianName 'Don' `
+        -ContactEmailAddress 'don@king.com' `
+        -Description 'This is a test data set without any useful data.' `
+        -DepositorSurname 'King' `
+        -DepositorChristianName 'Don' `
+    | Add-CitationMetadataAuthor `
+        -Surname 'Ali' `
+        -ChristianName 'Muhammad' `
+        -PassThru
+$desc = New-DataverseDataSetDescriptor `
+        -Licence 'CC0' `
+        -Terms 'CC0 Waiver' `
+        -CitationMetadata $citation
 ```
