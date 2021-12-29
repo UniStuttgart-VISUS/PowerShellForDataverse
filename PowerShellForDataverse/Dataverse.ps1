@@ -500,7 +500,7 @@ function New-DataverseDescriptor {
         [ValidateSet("UNCATEGORIZED", "DEPARTMENT", "JOURNALS", "LABORATORY",
             "ORGANIZATIONS_INSTITUTIONS", "RESEARCHERS", "RESEARCH_GROUP",
             "RESEARCH_PROJECTS", "TEACHING_COURSES")]
-            [string] $Type = "UNCATEGORIZED",
+        [string] $Type = "UNCATEGORIZED",
         [string] $Affiliation,
         [string] $Description
     )

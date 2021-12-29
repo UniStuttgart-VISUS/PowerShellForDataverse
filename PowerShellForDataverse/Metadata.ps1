@@ -13,10 +13,11 @@
 Creates a new metadata field.
 
 .DESCRIPTION
-This cmdlet fills a new MetadataField representing a metadata field. Only the name of
-the field needs to be provided a long with its value. All other properties of
-the field are derived from the value. The cmdlet is mainly intended for internal
-use, but might be useful for special application cases, too.
+This cmdlet fills a new MetadataField representing a metadata field. Only the
+name of the field needs to be provided a long with its value. All other
+properties of the field are derived from the value. The cmdlet is mainly
+intended for internal use, but might be useful for special application cases,
+too.
 
 .PARAMETER Name
 The Name parameter specifies the typeName value of the field. This can be
@@ -29,6 +30,10 @@ be empty arrays, because the first value is used to determine type typeClass
 of the field. If the specified value is a PsObject itself, the field is created
 as compound. Otherwise, it is assumed to be a primitive.
 
+.PARAMETER ControlledVocabulary
+The ControlledVocabulary switch instructs the cmdlet to interpret a primitive
+value as an element from a controlled vocabulary.
+
 .INPUTS
 This cmdlet does not accept input from the pipline.
 
@@ -37,8 +42,14 @@ A metadata field object filled with the specified data.
 #>
 function New-DataverseMetadataField {
     param(
-        [Parameter(Mandatory)] [string] $Name,
-        [Parameter(Mandatory)] $Value
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Name,
+
+        [Parameter(Mandatory)]
+        $Value,
+
+        [switch] $ControlledVocabulary
     )
 
     begin { }
@@ -65,9 +76,18 @@ function New-DataverseMetadataField {
             }
         }
 
-        # TODO: typeClass 'controlledVocabulary'
+        if ($ControlledVocabulary) {
+            # If we have a controlled vocabulary, make sure that the value is
+            # primitive and force it to be a string.
+            if ($typeClass -ne 'primitive') {
+                throw 'Only primitive values can be treated as elements of a controlled vocabulary.'
+            }
+            
+            $Value = [string] $Value
+            $typeClass = 'controlledVocabulary'
+        }
 
-        [PSCustomObject]@{
+        [PSCustomObject] @{
             'multiple' = $multiple;
             'typeClass' = $typeClass;
             'typeName' = $Name;
@@ -101,7 +121,7 @@ The Orcid parameter specifies the ORCID of an author.
 
 .NOTES
 This cmdlet is only intended for internal use. Use New-DataverseCitationMetadata
-and Add-Author to create new author records.
+and Add-CitationMetadataAuthor to create new author records.
 
 .INPUTS
 This cmdlet does not accept input from the pipline.
@@ -111,9 +131,16 @@ An PSCustomObject holding the metadata of a single author.
 #>
 function New-DataverseAuthor {
     param(
-        [Parameter(Mandatory)] [string] $Surname,
-        [Parameter(Mandatory)] [string] $ChristianName,
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $Surname,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $ChristianName,
+
         [string] $Affiliation,
+
         [string] $Orcid
     )
 
@@ -130,16 +157,132 @@ function New-DataverseAuthor {
         }
 
         if ($Orcid) {
-            $scheme = (New-DataverseMetadataField -Name 'authorIdentifierScheme' -Value 'ORCID')
+            $scheme = (New-DataverseMetadataField -Name 'authorIdentifierScheme' -Value 'ORCID' -ControlledVocabulary)
             $value = (New-DataverseMetadataField -Name 'authorIdentifier' -Value $Orcid)
             $retval | Add-Member -NotePropertyName 'authorIdentifierScheme' -NotePropertyValue $scheme
             $retval | Add-Member -NotePropertyName 'authorIdentifier' -NotePropertyValue $value
         }
+
+        $retval
     }
 
-    end {
-        return $retval
+    end { }
+}
+
+
+<#
+.SYNOPSIS
+Creates a new compound metadata field representing a keyword.
+
+.DESCRIPTION
+Creates metadata field for a keyword value from a controlled vocabulary. The
+vocabulary can be one of the built-in ones, in which case the name and the
+URI to the vocabulary are provided by the cmdlet. Alternatively, the name and
+the optional URI can be specified manually.
+
+.PARAMETER Value
+The Value parameter specifies the actual keyword.
+
+.PARAMETER VocabularyName
+The VocabularyName parameter specifies the name of the vocabulary the keyword
+is taken from.
+
+.PARAMETER VocabularyUri
+The VocabularyUri parameter specifies the location where the vocabulary is
+described.
+
+.PARAMETER Vocabulary
+The Vocabulary parameter specifies the name of a built-in vocabulary for which
+the name and the URI can be determined automatically.
+
+.NOTES
+This cmdlet is only intended for internal use. Use New-DataverseCitationMetadata
+and Add-CitationKeyword to create new keyword records.
+
+.INPUTS
+This cmdlet does not accept input from the pipline.
+
+.OUTPUTS
+An PSCustomObject holding the keyword information.
+
+.EXAMPLE
+New-DataverseKeyword -Value "Neckar River (Germany)" -Vocabulary Lcsh
+
+.EXAMPLE
+New-DataverseKeyword -Value "Neckar River (Germany)" -VocabularyName "LCSH" -VocabularyUri "https://id.loc.gov/authorities/subjects/sh85090565.html"
+#>
+function New-DataverseKeyword {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Value,
+
+        [Parameter(ParameterSetName = 'CustomVocabulary', Mandatory)]
+        [string] $VocabularyName,
+
+        [Parameter(ParameterSetName = 'CustomVocabulary')]
+        [string] $VocabularyUri,
+
+        [Parameter(ParameterSetName = 'BuiltinVocabulary', Mandatory)]
+        [ValidateSet('Gnd', 'Lcsh', 'Mesh')]
+        [string] $Vocabulary
+    )
+
+    begin { }
+
+    process {
+        $retval = [PSCustomObject] @{
+            'keywordValue' = (New-DataverseMetadataField -Name 'keywordValue' -Value $Value);
+        }
+
+        switch ($PSCmdlet.ParameterSetName) {
+            'CustomVocabulary' {
+                $values = @{
+                    'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value $VocabularyName)
+                }
+
+                if ($VocabularyUri) {
+                    $values['keywordVocabularyURI'] = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value $VocabularyUri)
+                }
+
+                $retval | Add-Member -NotePropertyMembers $values
+            }
+
+            'BuiltinVocabulary' {
+                switch ($Vocabulary) {
+                    'Gnd' {
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'GND-Sachgruppen')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html')
+                        }
+                    }
+
+                    'Lcsh' {
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'LCSH')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://id.loc.gov/authorities/subjects.html')
+                        }                        
+                    }
+                    
+                    'Mesh' {
+                        $retval | Add-Member -NotePropertyMembers @{
+                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'MeSH')
+                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://www.nlm.nih.gov/mesh/meshhome.html')
+                        }                        
+                    }
+
+                    default {
+                        throw "The specified built-in vocabulary `"$Vocabulary`" is unsupported."
+                    }
+                }
+            }
+
+            default { <# Nothing to do. #> }
+        }
+
+        $retval
     }
+
+    end { }
 }
 
 
@@ -177,9 +320,13 @@ allwows for chaining the addition of authors.
 This cmdlet does not accept input from the pipline.
 
 .OUTPUTS
-An PSCustomObject holding the metadata of a single author.
+The CitationMetadata parameter if the PassThru switch has been specified.
+
+.EXAMPLE
+Add-CitationMetadataAuthor -CitationMetadata $metadata -Surname 'Author' -ChristianName 'Christian'
 #>
 function Add-CitationMetadataAuthor {
+    [CmdLetBinding(SupportsShouldProcess,  ConfirmImpact = "Medium")]
     param(
         [Parameter(Mandatory, ValueFromPipeline)] [PsObject] $CitationMetadata,
         [Parameter(Mandatory)] [string] $Surname,
@@ -199,8 +346,11 @@ function Add-CitationMetadataAuthor {
     }
 
     process {
-        $CitationMetadata.fields | Where-Object { $_.typeName -eq 'author' } `
-            | ForEach-Object { $_.value += $author }
+        if ($PSCmdlet.ShouldProcess([string] $CitationMetadata, "Add author `"$Surname, $ChristianName`"")) {
+            $CitationMetadata.fields `
+                | Where-Object { $_.typeName -eq 'author' } `
+                | ForEach-Object { $_.value += $author }
+        }
 
         if ($PassThru) {
             $CitationMetadata
@@ -208,6 +358,118 @@ function Add-CitationMetadataAuthor {
     }
 
     end { }
+}
+
+
+<#
+.SYNOPSIS
+Adds an additional keyword to a citation metadata block.
+
+.DESCRIPTION
+Adds a metadata field for a keyword value from a specific vocabulary to the
+given citation metadata. The vocabulary can be one of the built-in ones, in
+which case the name and the URI to the vocabulary are provided by the cmdlet.
+Alternatively, the name and the optional URI can be specified manually.
+
+.PARAMETER Value
+The Value parameter specifies the actual keyword.
+
+.PARAMETER VocabularyName
+The VocabularyName parameter specifies the name of the vocabulary the keyword
+is taken from.
+
+.PARAMETER VocabularyUri
+The VocabularyUri parameter specifies the location where the vocabulary is
+described.
+
+.PARAMETER Vocabulary
+The Vocabulary parameter specifies the name of a built-in vocabulary for which
+the name and the URI can be determined automatically.
+
+.PARAMETER PassThru
+The PassThru switch instructs the cmdlet to return the CitationMetadata, which
+allwows for chaining the addition of keywords.
+
+.INPUTS
+This cmdlet does not accept input from the pipline.
+
+.OUTPUTS
+The CitationMetadata parameter if the PassThru switch has been specified.
+
+.EXAMPLE
+Add-CitationMetadataKeyword -CitationMetadata $metadata -Value 'Test' -VocabularyName 'Test Vocabulary'
+
+.EXAMPLE
+Add-CitationMetadataKeyword -CitationMetadata $metadata -Value 'Neckar River (Germany)' -Vocabulary Lcsh
+#>
+function Add-CitationMetadataKeyword {
+    [CmdLetBinding(SupportsShouldProcess, 
+        ConfirmImpact = "Medium",
+        DefaultParameterSetName = 'CustomVocabulary')]
+    param(
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [PsObject] $CitationMetadata,
+
+        [Parameter(Mandatory, ValueFromPipeline, Position = 0)]
+        [string] $Value,
+
+        [Parameter(ParameterSetName = 'CustomVocabulary', Mandatory)]
+        [string] $VocabularyName,
+
+        [Parameter(ParameterSetName = 'CustomVocabulary')]
+        [string] $VocabularyUri,
+
+        [Parameter(ParameterSetName = 'BuiltinVocabulary', Mandatory)]
+        [ValidateSet('Gnd', 'Lcsh', 'Mesh')]
+        [string] $Vocabulary,
+
+        [switch] $PassThru
+    )
+
+    begin {
+        # The keyword object would always be the same, even if multiple metadata
+        # blocks are piped to the cmdlet, so we can prepare it once.
+        switch ($PSCmdlet.ParameterSetName) {
+            'BuiltinVocabulary' {
+                $keyword = New-DataverseKeyword -Value $Value `
+                    -Vocabulary $Vocabulary
+            }
+
+            default { 
+                $keyword = New-DataverseKeyword -Value $Value `
+                    -VocabularyName $VocabularyName `
+                    -VocabularyUri $VocabularyUri
+            }
+        }
+    }
+
+    process {
+        $keywords = ($CitationMetadata.fields | Where-Object { $_.typeName -eq 'keyword' })
+
+        if ($keywords) {
+            # Metadata already contains at least one element.
+            if ($PSCmdlet.ShouldProcess([string] $CitationMetadata, "Add keyword `"$Value`"")) {
+                $keywords | ForEach-Object { $_.value += $keyword }
+            }
+
+        } else {
+            # This is the first keyword, so we need to create the field with the
+            # first value and add it to the fields of the metadata block.
+            $keywords = (New-DataverseMetadataField -Name 'keyword' -Value @($keyword))
+            #Write-Output $keyword
+            #Write-Output $keywords
+
+            if ($PSCmdlet.ShouldProcess([string] $CitationMetadata, "Add first keyword `"$Value`"")) {
+                $CitationMetadata.fields += $keywords
+            }
+        }
+
+        if ($PassThru) {
+            $CitationMetadata
+        }
+    }
+
+    end { }    
 }
 
 
@@ -238,7 +500,7 @@ function New-DataverseCitationMetadata {
         [Parameter(Mandatory)] [string] $ContactEmailAddress,
         [Parameter(Mandatory)] [string[]] $Description,
         <# subject #>
-        [PsObject[]] $Keywords,
+        <# $Keywords #>
         <# topicClassification #>
         <# publication #>
         [string] $Notes,
@@ -318,9 +580,9 @@ function New-DataverseCitationMetadata {
         $fields += New-DataverseMetadataField -Name 'datasetContact' -Value @($contact)
         $fields += New-DataverseMetadataField -Name 'dsDescription' -Value $descriptions
 
-        if ($Keywords -and ($Keywords.Count -gt 0)) {
-            $fields += New-DataverseMetadataField -Name 'keywords' -Value $Keywords
-        }
+        # if ($Keywords -and ($Keywords.Count -gt 0)) {
+        #     $fields += New-DataverseMetadataField -Name 'keywords' -Value $Keywords
+        # }
 
         if ($Notes) {
             $fields += New-DataverseMetadataField -Name 'notesText' -Value $Notes
@@ -379,16 +641,11 @@ function New-DataverseCitationMetadata {
             $fields += New-DataverseMetadataField -Name 'accessToSources' -Value $SourceAccess
         }    
 
-        # Create the metadata block
-        $retval = New-Object PSObject -Property @{
-            'displayName' = 'Citation Metadata';
-            'fields' = $fields;
-        }
+        # Create and emit the metadata block.
+        New-DataverseMetadata -DisplayName 'Citation Metadata' -Fields $fields
     }
 
-    end {
-        return $retval;
-    }
+    end { }
 }
 
 
@@ -444,95 +701,57 @@ function New-DataverseDataSetDescriptor {
 
 <#
 .SYNOPSIS
-Creates a new compound metadata field representing a keyword.
+Creates a new metadata block without any fields.
 
 .DESCRIPTION
-Creates metadata field for a keyword value from a controlled vocabulary. The
-vocabulary can be one of the built-in ones, in which case the name and the
-URI to the vocabulary are provided by the cmdlet. Alternatively, the name and
-the optional URI can be specified manually.
+This cmdlet initialises the minimal structure for a custom metadata block that
+can be manually filled with metadata fields.
 
-.PARAMETER Value
+.PARAMETER DisplayName
+The DisplayName parameter specifies the display name of the metadata block.
 
-.PARAMETER VocabularyName
+.PARAMETER Fields
+The Fields parameter specifies the initial set of metadata fields attached to
+the metadata block. If this parameter is not specified, an empty set of fields
+is created for the block.
 
-.PARAMETER VocabularyUri
-
-.PARAMETER Vocabulary
+.NOTES
+It is not recommended to create metadata blocks manually using this cmdlet if
+a specialised cmdlet exists for that block. The reason is that the cmdlets
+manipulating this block might assume a specific initialisation of the block,
+which might not be given when using this cmdlet. One example is the citation
+metadata block where the cmdlet for adding additional authors assumes that
+there is at least one author already in the block.
 
 .INPUTS
-The cmdlet accepts the keyword value as input from the pipeline.
+This cmdlet does not accept input from the pipline.
 
 .OUTPUTS
-An PSCustomObject holding the keyword information.
+An PSCustomObject holding representing the new metadata block.
 
 .EXAMPLE
-New-DataverseKeyword -Value "Neckar River (Germany)" -Vocabulary Lcsh
-
-.EXAMPLE
-New-DataverseKeyword -Value "Neckar River (Germany)" -VocabularyName "LCSH" -VocabularyUri "https://id.loc.gov/authorities/subjects/sh85090565.html"
+New-DataverseMetadata -DisplayName 'Citation Metadata'
 #>
-function New-DataverseKeyword {
+function New-DataverseMetadata {
+    [CmdletBinding()]
     param(
-        [Parameter(Mandatory, ValueFromPipeline, Position = 0)] [string] $Value,
-        [Parameter(ParameterSetName = "CustomVocabulary", Mandatory)] [string] $VocabularyName,
-        [Parameter(ParameterSetName = "CustomVocabulary")] [string] $VocabularyUri,
-        [Parameter(ParameterSetName = "BuiltinVocabulary", Mandatory)] [KeywordVocabulary] $Vocabulary
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $DisplayName,
+
+        [array] $Fields
     )
 
-    begin { }
-
-    process {
-        $retval = [PSCustomObject] @{
-            'keywordValue' = (New-DataverseMetadataField -Name 'keywordValue' -Value $Value);
+    begin {
+        if (-not $Fields) {
+            $Fields = @()
         }
-
-        switch ($PSCmdlet.ParameterSetName) {
-            'CustomVocabulary' {
-                $values = @{
-                    'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value $VocabularyName)
-                }
-
-                if ($VocabularyUri) {
-                    $values['keywordVocabularyURI'] = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value $VocabularyUri)
-                }
-
-                $retval | Add-Member -NotePropertyMembers $values
-            }
-
-            'BuiltinVocabulary' {
-                switch ($Vocabulary) {
-                    Gnd {
-                        $retval | Add-Member -NotePropertyMembers @{
-                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'GND-Sachgruppen')
-                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html')
-                        }
-                    }
-
-                    Lcsh {
-                        $retval | Add-Member -NotePropertyMembers @{
-                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'LCSH')
-                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://id.loc.gov/authorities/subjects.html')
-                        }                        
-                    }
-                    
-                    Mesh {
-                        $retval | Add-Member -NotePropertyMembers @{
-                            'keywordVocabulary' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabulary' -Value 'MeSH')
-                            'keywordVocabularyURI' = [PsCustomObject] (New-DataverseMetadataField -Name 'keywordVocabularyURI' -Value 'https://www.nlm.nih.gov/mesh/meshhome.html')
-                        }                        
-                    }
-                    default {
-                        throw 'The specified built-in vocabulary is invalid.'
-                    }
-                }
-            }
-
-            default { <# Nothing to do. #> }
-        }
-
-        $retval
     }
 
-    end { }
+    process {
+        New-Object PSObject -Property @{
+            'displayName' = $DisplayName;
+            'fields' = $Fields;
+        }
+    }
 }

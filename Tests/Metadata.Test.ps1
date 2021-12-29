@@ -261,7 +261,7 @@ Describe 'New-DataverseCitationMetadata' {
             $author.authorIdentifierScheme.typeName | Should Be 'authorIdentifierScheme'
             $author.authorIdentifierScheme.value | Should Be 'ORCID'
             $author.authorIdentifierScheme.multiple | Should Be $false
-            $author.authorIdentifierScheme.typeClass | Should Be 'primitive'            
+            $author.authorIdentifierScheme.typeClass | Should Be 'controlledVocabulary'            
 
             $author.authorIdentifier.typeName | Should Be 'authorIdentifier'
             $author.authorIdentifier.value | Should Be '1234'
@@ -334,7 +334,7 @@ Describe 'New-DataverseCitationMetadata' {
             $author.authorIdentifierScheme.typeName | Should Be 'authorIdentifierScheme'
             $author.authorIdentifierScheme.value | Should Be 'ORCID'
             $author.authorIdentifierScheme.multiple | Should Be $false
-            $author.authorIdentifierScheme.typeClass | Should Be 'primitive'            
+            $author.authorIdentifierScheme.typeClass | Should Be 'controlledVocabulary'            
 
             $author.authorIdentifier.typeName | Should Be 'authorIdentifier'
             $author.authorIdentifier.value | Should Be '1234'
@@ -407,78 +407,118 @@ Describe 'New-DataverseCitationMetadata' {
             $author.authorName.multiple | Should Be $false
             $author.authorName.typeClass | Should Be 'primitive'
         }        
-    }    
-}
-
-Describe 'New-DataverseKeyword' {
-    It 'Custom' {
-        $keyword = (New-DataverseKeyword -Value 'Test' -VocabularyName 'Test Vocabulary')
-
-        $keyword.keywordValue.typeName | Should Be 'keywordValue'
-        $keyword.keywordValue.value | Should Be 'Test'
-        $keyword.keywordValue.multiple | Should Be $false
-        $keyword.keywordValue.typeClass | Should Be 'primitive'
-
-        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
-        $keyword.keywordVocabulary.value | Should Be 'Test Vocabulary'
-        $keyword.keywordVocabulary.multiple | Should Be $false
-        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
     }
 
-    It 'GND-Sachgruppen' {
-        $keyword = (New-DataverseKeyword -Value 'Informatik, Datenverarbeitung' -Vocabulary Gnd)
+    Context 'Add-CitationMetadataKeyword' {
+        $metadata = New-DataverseCitationMetadata -Title 'title' `
+            -AuthorSurname 'author' `
+            -AuthorChristianName 'the' `
+            -ContactSurname 'contact' `
+            -ContactChristianName 'a' `
+            -ContactEmailAddress 'test@test.com' `
+            -Description 'description' `
+            -DepositorSurname 'depositor' `
+            -DepositorChristianName 'ze' `
+            -DepositDate '2022-01-01'
 
-        $keyword.keywordValue.typeName | Should Be 'keywordValue'
-        $keyword.keywordValue.value | Should Be 'Informatik, Datenverarbeitung'
-        $keyword.keywordValue.multiple | Should Be $false
-        $keyword.keywordValue.typeClass | Should Be 'primitive'
+        It 'Custom vocabulary' {
+            Add-CitationMetadataKeyword -CitationMetadata $metadata `
+                -Value 'Test' `
+                -VocabularyName 'Test Vocabulary'
+                 
+            $keyword = ($metadata.fields `
+                | Where-Object { $_.typeName -eq 'keyword' } `
+                | ForEach-Object { $_.value } `
+                | Select-Object -Last 1)
 
-        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
-        $keyword.keywordVocabulary.value | Should Be 'GND-Sachgruppen'
-        $keyword.keywordVocabulary.multiple | Should Be $false
-        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+            $keyword.keywordValue.typeName | Should Be 'keywordValue'
+            $keyword.keywordValue.value | Should Be 'Test'
+            $keyword.keywordValue.multiple | Should Be $false
+            $keyword.keywordValue.typeClass | Should Be 'primitive'
 
-        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
-        $keyword.keywordVocabularyURI.value | Should Be 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html'
-        $keyword.keywordVocabularyURI.multiple | Should Be $false
-        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'        
+            $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+            $keyword.keywordVocabulary.value | Should Be 'Test Vocabulary'
+            $keyword.keywordVocabulary.multiple | Should Be $false
+            $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+        }
+
+        It 'GND-Sachgruppen' {
+            Add-CitationMetadataKeyword -CitationMetadata $metadata `
+                -Value 'Informatik, Datenverarbeitung' `
+                -Vocabulary Gnd
+
+            $keyword = ($metadata.fields `
+                | Where-Object { $_.typeName -eq 'keyword' } `
+                | ForEach-Object { $_.value } `
+                | Select-Object -Last 1)
+
+            $keyword.keywordValue.typeName | Should Be 'keywordValue'
+            $keyword.keywordValue.value | Should Be 'Informatik, Datenverarbeitung'
+            $keyword.keywordValue.multiple | Should Be $false
+            $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+            $keyword.keywordVocabulary.value | Should Be 'GND-Sachgruppen'
+            $keyword.keywordVocabulary.multiple | Should Be $false
+            $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+            $keyword.keywordVocabularyURI.value | Should Be 'https://d-nb.info/standards/vocab/gnd/gnd-sc.html'
+            $keyword.keywordVocabularyURI.multiple | Should Be $false
+            $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'            
+        }
+
+        It 'LCSH' {
+            Add-CitationMetadataKeyword -CitationMetadata $metadata `
+                -Value 'Neckar River (Germany)' `
+                -Vocabulary Lcsh
+
+            $keyword = ($metadata.fields `
+                | Where-Object { $_.typeName -eq 'keyword' } `
+                | ForEach-Object { $_.value } `
+                | Select-Object -Last 1)
+
+            $keyword.keywordValue.typeName | Should Be 'keywordValue'
+            $keyword.keywordValue.value | Should Be 'Neckar River (Germany)'
+            $keyword.keywordValue.multiple | Should Be $false
+            $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+            $keyword.keywordVocabulary.value | Should Be 'LCSH'
+            $keyword.keywordVocabulary.multiple | Should Be $false
+            $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+            $keyword.keywordVocabularyURI.value | Should Be 'https://id.loc.gov/authorities/subjects.html'
+            $keyword.keywordVocabularyURI.multiple | Should Be $false
+            $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
+        }
+
+        It 'MeSH' {
+            Add-CitationMetadataKeyword -CitationMetadata $metadata `
+                -Value 'Aspirin' `
+                -Vocabulary Mesh
+
+            $keyword = ($metadata.fields `
+                | Where-Object { $_.typeName -eq 'keyword' } `
+                | ForEach-Object { $_.value } `
+                | Select-Object -Last 1)
+
+            $keyword.keywordValue.typeName | Should Be 'keywordValue'
+            $keyword.keywordValue.value | Should Be 'Aspirin'
+            $keyword.keywordValue.multiple | Should Be $false
+            $keyword.keywordValue.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
+            $keyword.keywordVocabulary.value | Should Be 'MeSH'
+            $keyword.keywordVocabulary.multiple | Should Be $false
+            $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
+
+            $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
+            $keyword.keywordVocabularyURI.value | Should Be 'https://www.nlm.nih.gov/mesh/meshhome.html'
+            $keyword.keywordVocabularyURI.multiple | Should Be $false
+            $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
+        }            
     }
 
-    It 'LCSH' {
-        $keyword = (New-DataverseKeyword -Value 'Neckar River (Germany)' -Vocabulary Lcsh)
-
-        $keyword.keywordValue.typeName | Should Be 'keywordValue'
-        $keyword.keywordValue.value | Should Be 'Neckar River (Germany)'
-        $keyword.keywordValue.multiple | Should Be $false
-        $keyword.keywordValue.typeClass | Should Be 'primitive'
-
-        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
-        $keyword.keywordVocabulary.value | Should Be 'LCSH'
-        $keyword.keywordVocabulary.multiple | Should Be $false
-        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
-
-        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
-        $keyword.keywordVocabularyURI.value | Should Be 'https://id.loc.gov/authorities/subjects.html'
-        $keyword.keywordVocabularyURI.multiple | Should Be $false
-        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
-    }
-
-    It 'MeSH' {
-        $keyword = (New-DataverseKeyword -Value 'Aspirin' -Vocabulary Mesh)
-
-        $keyword.keywordValue.typeName | Should Be 'keywordValue'
-        $keyword.keywordValue.value | Should Be 'Aspirin'
-        $keyword.keywordValue.multiple | Should Be $false
-        $keyword.keywordValue.typeClass | Should Be 'primitive'
-
-        $keyword.keywordVocabulary.typeName | Should Be 'keywordVocabulary'
-        $keyword.keywordVocabulary.value | Should Be 'MeSH'
-        $keyword.keywordVocabulary.multiple | Should Be $false
-        $keyword.keywordVocabulary.typeClass | Should Be 'primitive'
-
-        $keyword.keywordVocabularyURI.typeName | Should Be 'keywordVocabularyURI'
-        $keyword.keywordVocabularyURI.value | Should Be 'https://www.nlm.nih.gov/mesh/meshhome.html'
-        $keyword.keywordVocabularyURI.multiple | Should Be $false
-        $keyword.keywordVocabularyURI.typeClass | Should Be 'primitive'
-    }    
 }
