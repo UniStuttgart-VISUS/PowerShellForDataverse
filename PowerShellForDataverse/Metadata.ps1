@@ -651,56 +651,6 @@ function New-DataverseCitationMetadata {
 
 <#
 .SYNOPSIS
-Creates a new descriptor for a data set.
-
-.DESCRIPTION
-Fills the description of a data set with user-defined values. This cmdlet is
-intended to prepare new data sets for upload to Dataverse.
-
-.PARAMETER Licence
-The Licence parameter specifies the licencing terms for the data set. The use of
-pre-defined licences like "CC0" is encouraged.
-
-.PARAMETER Terms
-The Terms parameter specifies the terms of use for the data set. The use of
-standard terms like "CC0 Waiver" is encouraged.
-
-.PARAMETER MetadataBlocks
-The MetadataBlocks parameter specifies all the metadata assigned to the data set
-as a whole. Each of the blocks must be a PsObject which has a JSON
-representation that is compatible with the Dataverse API. You can create such
-objects manually or use the convenience cmdlets provided by the module.
-
-.INPUTS
-This cmdlet does not accept input from the pipline.
-
-.OUTPUTS
-The descriptor object, which can be passed to New-DataverseDataSet to create a
-new data set.
-#>
-function New-DataverseDataSetDescriptor {
-    param(
-        [Parameter(Mandatory)] [string] $Licence,
-        [Parameter(Mandatory)] [string] $Terms,
-        [Parameter(Mandatory)] [PsObject[]] $MetadataBlocks
-    )
-
-    begin { }
-
-    process {
-        New-Object PSObject -Property @{
-            license = $Licence;
-            termsOfUse = $Terms;
-            metadataBlocks = $MetadataBlocks;
-        }
-    }
-
-    end { }
-}
-
-
-<#
-.SYNOPSIS
 Creates a new metadata block without any fields.
 
 .DESCRIPTION
