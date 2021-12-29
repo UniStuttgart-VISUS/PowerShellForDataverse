@@ -7,7 +7,7 @@ Copy the `PowerShellForDataverse` directory and all of its contents into one of 
 ## Usage
 The [Dataverse Native API](http://guides.dataverse.org/en/latest/api/native-api.html) is a web API based on JSON input and output. All JSON output is converted into `PSObject`s such that you can perform the usual pipeline operations on them. Whenever JSON input is required, PowerShellForDataverse provides a cmdlet for constructing the input object. The following samples show how the currenly available cmdlets in PowerShellForDataverse are used:
 
-### Working with dataverse
+### Working with dataverses
 #### Retrieve description of a dataverse
 ```powershell
 $cred = Get-Credential token
@@ -82,6 +82,10 @@ $citation = New-DataverseCitationMetadata `
     | Add-CitationMetadataAuthor `
         -Surname 'Ali' `
         -ChristianName 'Muhammad' `
+        -PassThru `
+    | Add-CitationMetadataKeyword `
+        -Value 'Boxing'`
+        -Vocabulary Lcsh `
         -PassThru
 $desc = New-DataverseDataSetDescriptor `
         -Licence 'CC0' `
