@@ -14,6 +14,11 @@ param(
     [Parameter()] [string] $CmdletName
     )
 
+<#
+.SYNOPSIS
+Extracts descriptors for cmdlet parameters from a list of descriptors of
+metadata fields.
+#>
 function Get-ParameterList {
     param(
         [Parameter()] [PsObject] $Fields,
@@ -45,11 +50,42 @@ function Get-ParameterList {
                 [PSCustomObject] @{
                     Name = $n;
                     Type = $t;
-                    Description = $d
+                    Target = $f.name;
+                    Description = $d;
                 }
             }
     }    
-}    
+}
+
+
+<#
+.SYNOPSIS
+Creates descriptors for structured data and the cmdlets for initialising them
+from individual properties.
+#>
+function Get-Structures {
+    param([Parameter()] [PsObject] $Fields)
+
+    $Fields.PsObject.Properties `
+        | Where-Object { $_.MemberType -eq 'NoteProperty' } `
+        | Where-Object { $_.Value.childFields } `
+        | Sort-Object { $_.Value.displayName } `
+        | ForEach-Object { `
+            $f = $_.Value
+            $n = (Get-Culture).TextInfo.ToTitleCase($f.displayName.ToLower()) -replace "\s", '' -replace "/", '' -replace "-", ''
+            $d = $f.description
+            $p = Get-ParameterList $f.childFields
+
+            [PSCustomObject] @{
+                Name = $n;
+                Type = $t;
+                Target = $f.name;
+                Description = $d;
+                Parameters = $p
+            }
+        }
+}
+
 
 if (-not $CmdletName) {
     $CmdletName = $Block
@@ -66,6 +102,9 @@ $displayName = $metadata.displayName
 # Convert all fields to parameters
 $parameters = Get-ParameterList $metadata.fields
 
+$structures = Get-Structures $metadata.fields
+
 #$metadata
-$parameters
+#$parameters
+$structures
 #$metadata.fields | ConvertTo-Json -Depth 16
