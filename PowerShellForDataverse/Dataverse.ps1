@@ -45,6 +45,12 @@ A confirmation of the successful operation.
 
 .EXAMPLE
 Add-DataverseRole -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) -Principal "@user" -Role curator
+
+.EXAMPLE
+Get-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) | Add-DataverseRole -Principal "@user" -Role curator
+
+.EXAMPLE
+Get-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/xxx -Credential (Get-Credential token) | Get-ChildDataverse | Add-DataverseRole -Principal "@user" -Role curator
 #>
 function Add-DataverseRole {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
@@ -211,10 +217,10 @@ The Dataverse parameter can be piped into the cmdlet.
 All data sets in the given dataverse.
 
 .EXAMPLE
-Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus
 
 .EXAMPLE
-Get-DataSet -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-ChildDataverse
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-ChildDataverse
 
 .EXAMPLE
 Get-Dataverse -Uri https://darus.uni-stuttgart.de/api/dataverses/TR161 -Credential (Get-Credential token) | Get-DataSet -Recurse | ?{ $_.latestVersion.versionState -eq 'RELEASED' }

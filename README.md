@@ -2,7 +2,7 @@
 PowerShell for Dataverse provides a wrapper around the native web API of [Dataverse](https://dataverse.org/).
 
 ## Installation
-Copy the `PowerShellForDataverse` directory and all of its contents into one of the module paths indicated by `$env:PSModulePath`. Depending on the version of PowerShell you are running, you may need to import the module using `Import-Module PowerShellForDataverse`. You may also import the module from any locating by calling `ImportModule [Path to PowerShellForDataverse folder]\PowerShellForDataverse.psd1`.
+Copy the `PowerShellForDataverse` directory and all of its contents into one of the module paths indicated by `$env:PSModulePath`. Depending on the version of PowerShell you are running, you may need to import the module using `Import-Module PowerShellForDataverse`. You may also import the module from any locating by calling `Import-Module [Path to PowerShellForDataverse folder]\PowerShellForDataverse.psd1`.
 
 ## Usage
 The [Dataverse Native API](http://guides.dataverse.org/en/latest/api/native-api.html) is a web API based on JSON input and output. All JSON output is converted into `PSObject`s such that you can perform the usual pipeline operations on them. Whenever JSON input is required, PowerShellForDataverse provides a cmdlet for constructing the input object. The following samples show how the currenly available cmdlets in PowerShellForDataverse are used:
