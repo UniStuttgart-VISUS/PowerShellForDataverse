@@ -7,6 +7,79 @@
 # Licenced under the MIT License.
 #
 
+<#
+.SYNOPSIS
+Retrieves the metadata blocks of the latest version of the data set.
+
+.DESCRIPTION
+TODO
+
+.PARAMETER DataSet
+The DataSet parameter is the object representing the data set to retrieve the
+metadata blocks for.
+
+.PARAMETER Uri
+The Uri parameter allows for retrieving the metadata blocks of a data set at
+the specified location.
+
+.PARAMETER Credential
+The Credential parameter provides the API token to connect to the dataverse
+API.
+
+.INPUTS
+The DataSet parameter can be piped into the cmdlet.
+
+.OUTPUTS
+All metadata blocks of the latest version of the given data set.
+
+.EXAMPLE
+ Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet $dataverse | Get-Metadata
+
+ .EXAMPLE
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet $dataverse | Get-Metadata | ?{ $_.name -eq "citation" }
+
+#>
+function Get-Metadata {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+
+    param(
+        [Parameter(ParameterSetName = "DataSet", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $DataSet,
+
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "DataSet", Position = 1)]
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
+        [PSCredential] $Credential
+    )
+
+    begin { }
+
+    process {
+        switch ($ParameterSet) {
+            "Uri" {
+                $DataSet = Get-DataSet -Uri $Uri -Credential $Credential
+            }
+            default { <# Nothing to do. #> }
+        }
+
+        if (-not $DataSet) {
+            throw "A valid data set is required to retrieve metadata."
+        }
+
+        if ($PSCmdlet.ShouldProcess($DataSet.persistentUrl, 'metadata')) {
+            $DataSet.latestVersion.metadataBlocks | ForEach-Object {
+                $_.PSObject.Properties | ForEach-Object {
+                    $_.Value
+                }
+            }
+        }
+    }
+
+    end { }
+}
+
 
 <#
 .SYNOPSIS
