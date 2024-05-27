@@ -92,3 +92,19 @@ $desc = New-DataverseDataSetDescriptor `
         -Terms 'CC0 Waiver' `
         -CitationMetadata $citation
 ```
+
+#### Retrieve all data sets in a dataverse
+```powershell
+$cred = Get-Credential token
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+    | Get-DataSet -Recurse
+```
+
+#### Retrieve the citation metadata
+```powershell
+$cred = Get-Credential token
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+    | Get-DataSet -Recurse
+    | Get-Metadata
+    | ?{ $_.name -eq "citation" }
+```
