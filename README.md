@@ -104,8 +104,8 @@ Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgar
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
-    | Get-DataSet -Recurse
-    | Get-Metadata
+    | Get-DataSet -Recurse `
+    | Get-Metadata `
     | ?{ $_.name -eq 'citation' }
 ```
 
@@ -113,9 +113,9 @@ Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgar
 ```powershell
 $cred = Get-Credential token
 Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
-    | Get-DataSet -Recurse
-    | Get-Metadata
-    | ?{ $_.name -eq 'citation' }
-    | %{ $_.typeName -eq 'title' }
+    | Get-DataSet -Recurse `
+    | Get-Metadata `
+    | ?{ $_.name -eq 'citation' } `
+    | %{ $_.typeName -eq 'title' } `
     | Select-Object value
 ```
