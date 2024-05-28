@@ -198,7 +198,10 @@ sets for.
 
 .PARAMETER Uri
 The Uri parameter specifies the URI of an existing dataverse to retrieve the
-data sets for.
+data sets for, or alternatively the URI of a single data set. The cmdlet assumes
+the URI to be one of a data set if it does not contain the substring
+"/dataverses/", which is the part of the API to access the contents of a
+dataverse.
 
 .PARAMETER Credential
 The Credential parameter provides the API token to connect to the dataverse
@@ -237,28 +240,41 @@ function Get-DataSet {
 
     process {
         $params = Split-RequestParameters $PSCmdlet.ParameterSetName $Dataverse $Uri $Credential
-        $Uri = "$($params[0].AbsoluteUri)/contents"
         $Credential = $params[1]
 
-        $p = $params[0].Segments | Select-Object -First ($params[0].Segments.Count - 2)
-        $p += 'datasets'
-        $baseUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"
+        if ((-not $Uri) -or ($Uri -imatch '.+/dataverses/')) {
+            # This is not the URI of a data set, but of a dataverse, so we need
+            # to retrieve the contents rather than the data set object itself.
+            $Uri = "$($params[0].AbsoluteUri)/contents"
+            Write-Verbose "Retrieve all data sets via $Uri."
 
-        if ($PSCmdlet.ShouldProcess($Uri, 'GET')) {
-            # Retrieve and emit immediate content of the given dataverse. Note
-            # that the enumeration of children does not yield all the data we
-            # are interested (namely versions), so we request that in additional
-            # calls.
-            Invoke-DataverseRequest -Uri $Uri -Credential $Credential `
-                | Where-Object { $_.type -imatch '^dataset$' } `
-                | ForEach-Object { `
-                    Invoke-DataverseRequest "$baseUri/$($_.id)" -Credential $Credential }
-
-            # If requested, retrieve contents of children recursively.
-            if ($Recurse) {
-                Get-ChildDataverse -Uri $params[0] -Credential $Credential -Recurse `
-                    | ForEach-Object { Get-DataSet -Dataverse $_ }
+            # Prepare the base URI to retrieve the actual data set later.
+            $p = $params[0].Segments | Select-Object -First ($params[0].Segments.Count - 2)
+            $p += 'datasets'
+            $baseUri = "$($Uri.Scheme)://$($Uri.Authority)$($p -Join '')"
+    
+            if ($PSCmdlet.ShouldProcess($Uri, 'GET')) {
+                # Retrieve and emit immediate content of the given dataverse. Note
+                # that the enumeration of children does not yield all the data we
+                # are interested (namely versions), so we request that in additional
+                # calls.
+                Invoke-DataverseRequest -Uri $Uri -Credential $Credential `
+                    | Where-Object { $_.type -imatch '^dataset$' } `
+                    | ForEach-Object { `
+                        Invoke-DataverseRequest "$baseUri/$($_.id)" -Credential $Credential 
+                    }
+    
+                # If requested, retrieve contents of children recursively.
+                if ($Recurse) {
+                    Get-ChildDataverse -Uri $params[0] -Credential $Credential -Recurse `
+                        | ForEach-Object { Get-DataSet -Dataverse $_ }
+                }
             }
+
+        } else {
+            # We assume this to be the URI of a single data set, which we can
+            # retrieve directly.
+            Invoke-DataverseRequest $Uri -Credential $Credential
         }
     }
 

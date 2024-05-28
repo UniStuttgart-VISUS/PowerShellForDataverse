@@ -7,6 +7,76 @@
 # Licenced under the MIT License.
 #
 
+
+<#
+.SYNOPSIS
+Extracts the textual description of the data set.
+
+.DESCRIPTION
+This cmdlet extracts the raw description text from the weirdly nested compound
+stored in DataVerse. If you just need the text, use it to get rid of all the
+structured data.
+
+.PARAMETER DataSet
+The DataSet parameter specifies the data set to extract the description from.
+
+.PARAMETER Uri
+The Uri parameter specifies the location of the data set to extract the
+description from.
+
+.PARAMETER Credential
+The Credential parameter provides the API token to connect to the dataverse
+API.
+
+.INPUTS
+The DataSet parameter can be piped into the cmdlet.
+
+.OUTPUTS
+The description entries of all data sets are emitted.
+#>
+function Get-DataSetDescription {
+    [CmdletBinding(DefaultParameterSetName = 'Uri')]
+
+    param(
+        [Parameter(ParameterSetName = "DataSet", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $DataSet,
+
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
+        [System.Uri] $Uri,
+
+        [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
+        [PSCredential] $Credential
+    )
+
+    begin { }
+
+    process {
+        switch ($PSCmdlet.ParameterSetName) {
+            "Uri" {
+                $DataSet = Get-DataSet -Uri $Uri -Credential $Credential
+            }
+            default { <# Nothing to do. #> }
+        }
+
+        if (-not $DataSet) {
+            throw "A valid data set is required to retrieve its description, either by providing the data set itself or its URI."
+        }
+
+        $DataSet.latestVersion.metadataBlocks | ForEach-Object { 
+            $_.PSObject.Properties `
+                | Where-Object {  $_.Name -ieq 'citation' } `
+                | ForEach-Object { 
+                    $_.Value.fields `
+                        | Where-Object { $_.typeName -ieq 'dsDescription' } `
+                        | ForEach-Object { $_.value.dsDescriptionValue.value }
+                }
+        }
+    }
+
+    end { }
+}
+
+
 <#
 .SYNOPSIS
 Gets the list of files in a data set.
@@ -68,7 +138,9 @@ function Get-DataSetFiles {
         $Uri = "$($params[0].AbsoluteUri)/versions/$Version/files"
         $Credential = $params[1]
 
-        Invoke-DataverseRequest -Uri $Uri -Credential $Credential
+        if ($PSCmdlet.ShouldProcess($Uri, "GET")) {
+            Invoke-DataverseRequest -Uri $Uri -Credential $Credential
+        }
     }
 
     end { }
@@ -103,7 +175,7 @@ The DataSet parameter can be piped into the cmdlet.
 The versions of the input data sets as objects.
 #>
 function Get-DataSetVersion {
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
+    [CmdletBinding()]
 
     param(
         [Parameter(ParameterSetName = "DataSet", Mandatory, Position = 0, ValueFromPipeline)]
@@ -119,12 +191,16 @@ function Get-DataSetVersion {
     begin { }
 
     process {
-        switch ($ParameterSet) {
+        switch ($PSCmdlet.ParameterSetName) {
             "Uri" {
                 $DataSet = Get-DataSet -Uri $Uri -Credential $Credential
             }
             default { <# Nothing to do. #> }
         }
+
+        if (-not $DataSet) {
+            throw "A valid data set is required to determine the latest version."
+        }        
 
         $retval = New-Object PSObject -Property @{
             Major = $DataSet.latestVersion.versionNumber;
@@ -134,7 +210,7 @@ function Get-DataSetVersion {
         if (($retval.Major -ne $null) -and ($retval.Minor -ne $null)) {
             $retval | Add-Member -NotePropertyName 'Full' -NotePropertyValue "$($DataSet.latestVersion.versionNumber).$($DataSet.latestVersion.versionMinorNumber)"
         } else {
-            $retval | Add-Member -NotePropertyName 'Full' -NotePropertyValue ":draft"
+            $retval | Add-Member -NotePropertyName 'Full' -NotePropertyValue ":latest"
         }
 
         return $retval

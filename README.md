@@ -1,5 +1,5 @@
 # PowerShellForDataverse
-PowerShell for Dataverse provides a wrapper around the native web API of [Dataverse](https://dataverse.org/).
+PowerShell for Dataverse provides a wrapper around the [native web API](https://guides.dataverse.org/en/latest/api/native-api.html) of [Dataverse](https://dataverse.org/).
 
 ## Installation
 Copy the `PowerShellForDataverse` directory and all of its contents into one of the module paths indicated by `$env:PSModulePath`. Depending on the version of PowerShell you are running, you may need to import the module using `Import-Module PowerShellForDataverse`. You may also import the module from any locating by calling `Import-Module [Path to PowerShellForDataverse folder]\PowerShellForDataverse.psd1`.
@@ -96,14 +96,14 @@ $desc = New-DataverseDataSetDescriptor `
 #### Retrieve all data sets in a dataverse
 ```powershell
 $cred = Get-Credential token
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
     | Get-DataSet -Recurse
 ```
 
 #### Retrieve the citation metadata
 ```powershell
 $cred = Get-Credential token
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
     | Get-DataSet -Recurse `
     | Get-Metadata `
     | ?{ $_.name -eq 'citation' }
@@ -112,10 +112,147 @@ Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgar
 #### Retrieve the titles of all data sets
 ```powershell
 $cred = Get-Credential token
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
     | Get-DataSet -Recurse `
     | Get-Metadata `
     | ?{ $_.name -eq 'citation' } `
-    | %{ $_.typeName -eq 'title' } `
+    | %{ $_.fields } `
+    | ?{ $_.typeName -eq 'title' } `
     | Select-Object value
+```
+
+#### Retrieve all files of a data set
+```powershell
+$cred = Get-Credential token
+Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+    | Get-DataSet -Recurse `
+    | Select-Object -First 1 `
+    | Get-DataSetFiles
+```
+
+#### Determine the overall size of a data set
+```powershell
+$cred = Get-Credential token
+Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/visus `
+    | Get-DataSet -Recurse `
+    | Select-Object -First 1 `
+    | Get-DataSetFiles `
+    | %{ $_.dataFile } `
+    | Measure-Object -Property filesize -Sum
+```
+
+#### Export data sets into a data management plan
+```powershell
+$word = New-Object -ComObject Word.Application
+$word.Visible = $True
+$doc = $word.Documents.Add()
+
+$cred = Get-Credential token
+$dataverse = Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/dataverses/tr161
+
+Get-ChildDataverse $dataverse `
+    | Sort-Object -Property alias `
+    | ForEach-Object { `
+        $project = $_.alias -ireplace 'TR161_',''
+        Get-DataSet $_ -Recurse `
+        | ForEach-Object {
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture
+            [System.Threading.Thread]::CurrentThread.CurrentUICulture  = [System.Globalization.CultureInfo]::InvariantCulture
+
+            $dataSet = $_
+            $files = Get-DataSetFiles $dataSet
+            $description = Get-DataSetDescription $dataSet
+            $citation = $dataSet | Get-Metadata | ?{ $_.name -eq 'citation' }
+            $privacy = $dataSet | Get-Metadata | ?{ $_.name -eq 'privacy' }
+
+            $word.Selection.Start = $doc.Content.End
+            $sel = $word.Selection
+            $sel.TypeParagraph()
+
+            $tab = $sel.Tables.Add($sel.Range,`
+                15,`
+                2,`
+                [Microsoft.Office.Interop.Word.WdDefaultTableBehavior]::wdWord9TableBehavior,`
+                [Microsoft.Office.Interop.Word.WdAutoFitBehavior]::wdAutoFitContent)
+            $tab.PreferredWidthType = [Microsoft.Office.Interop.Word.WdPreferredWidthType]::wdPreferredWidthPercent
+            $tab.PreferredWidth = 100
+            $tab.Columns(1).PreferredWidthType = [Microsoft.Office.Interop.Word.WdPreferredWidthType]::wdPreferredWidthPercent
+            $tab.Columns(1).PreferredWidth = 30
+            $tab.Columns(2).PreferredWidthType = [Microsoft.Office.Interop.Word.WdPreferredWidthType]::wdPreferredWidthPercent
+            $tab.Columns(2).PreferredWidth = 70
+
+            $tab.Cell(1, 1).Range.Text = "Title:"
+            $tab.Cell(1, 1).Range.Bold = $true
+            $tab.Cell(1, 2).Range.Text = ($citation | %{ $_.fields} | ?{ $_.typeName -eq 'title' }).value
+
+            $tab.Cell(2, 1).Range.Text = "Project:"
+            $tab.Cell(2, 1).Range.Bold = $true
+            $tab.Cell(2, 2).Range.Text = $project
+
+            $tab.Cell(3, 1).Range.Text = "Origin:"
+            $tab.Cell(3, 1).Range.Bold = $true
+            $tab.Cell(3, 2).Range.Text = "Own experiments"
+
+            $tab.Cell(4, 1).Range.Text = "Embargo period:"
+            $tab.Cell(4, 1).Range.Bold = $true
+            $tab.Cell(4, 2).Range.Text = "None"
+
+            $tab.Cell(5, 1).Range.Text = "Access restrictions:"
+            $tab.Cell(5, 1).Range.Bold = $true
+            $tab.Cell(5, 2).Range.Text = "None"
+
+            $tab.Cell(6, 1).Range.Text = "Licence:"
+            $tab.Cell(6, 1).Range.Bold = $true
+            #$tab.Cell(6, 2).Range.Text = $dataSet.latestVersion.termsOfUse
+            $tab.Cell(6, 2).Range.Text = $dataSet.latestVersion.license.name
+
+            $tab.Cell(7, 1).Range.Text = "Format:"
+            $tab.Cell(7, 1).Range.Bold = $true
+            $tab.Cell(7, 2).Range.Text = (($files | %{ $_.dataFile.friendlyType }) | Sort-Object | Get-Unique) -join ', '
+
+            $tab.Cell(8, 1).Range.Text = "(Estimated) Volume:"
+            $tab.Cell(8, 1).Range.Bold = $true
+            $tab.Cell(8, 2).Range.Text = '{0:0.##} MB' -f (($files | %{ $_.dataFile } | Measure-Object -Property filesize -Sum).Sum / 1024 / 1024)
+
+            $tab.Cell(9, 1).Range.Text = "Description:"
+            $tab.Cell(9, 1).Range.Bold = $true
+            $tab.Cell(9, 2).Range.Text = $description -replace '<[^>]+>',''
+
+            $tab.Cell(10, 1).Range.Text = "Purpose (for the project):"
+            $tab.Cell(10, 1).Range.Bold = $true
+            $value = ($citation | %{ $_.fields} | ?{ $_.typeName -eq 'publication' }).value.publicationCitation.value
+            if ($value) {
+                $tab.Cell(10, 2).Range.Text = "Basis for publication $value"
+            }
+
+            $tab.Cell(11, 1).Range.Text = "Utility (for others):"
+            $tab.Cell(11, 1).Range.Bold = $true
+
+            $tab.Cell(12, 1).Range.Text = "Repository:"
+            $tab.Cell(12, 1).Range.Bold = $true
+            $tab.Cell(12, 2).Range.Text = "DaRUS ($($_.persistentUrl))"
+
+            $tab.Cell(13, 1).Range.Text = "Existing data to be trans-ferred to data repository:"
+            $tab.Cell(13, 1).Range.Bold = $true
+            $tab.Cell(13, 2).Range.Text = "No"
+
+            $tab.Cell(14, 1).Range.Text = "Contains personal data:"
+            $tab.Cell(14, 1).Range.Bold = $true
+            $value = ($privacy | %{ $_.fields} | ?{ $_.typeName -eq 'privData' }).value
+            if ($value) {
+                $value = "$([Char]::ToUpper($value[0]))$($value.Substring(1) -replace 'ize','ise')"
+            } else {
+                $value = "No"
+            }        
+            $tab.Cell(14, 2).Range.Text = $value
+
+            $tab.Cell(15, 1).Range.Text = "Contains special categories of personal data:"
+            $tab.Cell(15, 1).Range.Bold = $true
+            $value = ($privacy | %{ $_.fields} | ?{ $_.typeName -eq 'privSpecial' }).value
+            if (-not $value) {
+                $value = "No"
+            }
+            $tab.Cell(15, 2).Range.Text = $value
+        }
+    }
 ```

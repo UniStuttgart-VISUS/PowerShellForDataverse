@@ -59,7 +59,7 @@ function Get-Metadata {
     begin { }
 
     process {
-        switch ($ParameterSet) {
+        switch ($PSCmdlet.ParameterSetName) {
             "Uri" {
                 $DataSet = Get-DataSet -Uri $Uri -Credential $Credential
             }

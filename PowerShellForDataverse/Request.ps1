@@ -77,12 +77,14 @@ function Invoke-DataverseRequest {
     }
 
     process {
+        # Encoding hack: Cf. https://www.reddit.com/r/PowerShell/comments/1173yow/fix_encoding_on_invokewebrequest/
         Invoke-WebRequest `
             -Headers @{ "X-Dataverse-key" = $Credential.GetNetworkCredential().Password } `
             -Method $Method `
             -Uri $Uri `
             -ContentType $ContentType `
             -Body $Body `
+        | ForEach-Object { [System.Text.Encoding]::UTF8.GetString($_.RawContentStream.ToArray()) } `
         | ConvertFrom-Json `
         | ForEach-Object { $_.data `
             | Add-Member "RequestUri" -NotePropertyValue $RequestUri -PassThru `
