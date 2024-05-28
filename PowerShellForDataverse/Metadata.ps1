@@ -12,7 +12,10 @@
 Retrieves the metadata blocks of the latest version of the data set.
 
 .DESCRIPTION
-TODO
+If necessary, retrieves the data set with the specified URI and extracts the
+metadata blocks from the description of the data set. If the data set itself
+is provided, the cmdlet functions without an additional web request, but
+extracts the metadata directly from the object provided.
 
 .PARAMETER DataSet
 The DataSet parameter is the object representing the data set to retrieve the
@@ -49,7 +52,6 @@ function Get-Metadata {
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 0)]
         [System.Uri] $Uri,
 
-        [Parameter(ParameterSetName = "DataSet", Position = 1)]
         [Parameter(ParameterSetName = "Uri", Mandatory, Position = 1)]
         [PSCredential] $Credential
     )

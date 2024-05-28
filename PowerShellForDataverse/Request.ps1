@@ -106,15 +106,16 @@ parameter sets into an array of the URI and the credentials.
 .PARAMETER ParameterSet
 The ParameterSet is the name of the parameter set the function should process.
 This should always be $PSCmdlet.ParameterSetName. If this parameter is
-"Dataverse", the Dataverse parameter is used to obtain the URI and credential.
+"Dataverse" or "DataSet", the DataverseObject parameter is used to obtain the
+URI and credential.
 
-.PARAMETER Dataverse
-The Dataverse parameter holds the dataverse object to retrieve the URI and the
-credential from. It is only used if the ParameterSet parameter is set to
-"Dataverse".
+.PARAMETER DataverseObject
+The DataverseObject parameter holds the dataverse object to retrieve the URI and
+the credential from. It is only used if the ParameterSet parameter is set
+acoordingly.
 
 .PARAMETER Uri
-The URI parameter holds the URI of a dataverse.
+The URI parameter holds the URI of a dataverse or data set.
 
 .PARAMETER Credential
 The Credential parameter holds the API token to be used for connecting to a
@@ -132,24 +133,24 @@ An array holding the normalised URI and the credential (in this order).
 function Split-RequestParameters {
     param(
         [Parameter(Mandatory)] [string] $ParameterSet,
-        [PSObject] $Dataverse,
+        [PSObject] $DataverseObject,
         [System.Uri] $Uri,
         [PSCredential] $Credential
     )
 
-    switch ($ParameterSet) {
-        "Dataverse" {
-            if (-not $Dataverse) {
+    switch -Regex ($ParameterSet) {
+        "^Dataverse|DataSet$" {
+            if (-not $DataverseObject) {
                 throw "The Dataverse parameter is mandatory for the parameter set `"$ParameterSet`"."
             }
 
-            $Uri = [Uri]::new($Dataverse.RequestUri)
-            Write-Verbose "Using request URI `"$Uri`" from existing Dataverse."
+            $Uri = [Uri]::new($DataverseObject.RequestUri)
+            Write-Verbose "Using request URI `"$Uri`" from existing object."
 
              if (!$Credential) {
-                 $Credential = $Dataverse.Credential
-                 Write-Verbose "Using credential from existing Dataverse."
-            }                 
+                 $Credential = $DataverseObject.Credential
+                 Write-Verbose "Using credential from existing object."
+            }
         }
         default { <# Nothing to do. #> }
     }
