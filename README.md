@@ -295,3 +295,15 @@ Get-ChildDataverse $dataverse `
         }
     }
 ```
+#### Get the names of all contributors
+```powershell
+Get-ChildDataverse $dataverse | ForEach-Object {
+        Get-DataSet $_ -Recurse  | ForEach-Object { 
+            [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture
+            [System.Threading.Thread]::CurrentThread.CurrentUICulture  = [System.Globalization.CultureInfo]::InvariantCulture
+            $dataSet = $_
+            $citation = $dataSet | Get-Metadata | ?{ $_.name -eq 'citation' }
+            ($citation | %{ $_.fields} | ?{ $_.typeName -eq 'author' }).value.authorName.value
+	}
+} | Sort-Object | Get-Unique
+```
