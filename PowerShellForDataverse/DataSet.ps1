@@ -1,8 +1,7 @@
-#
+﻿#
 # DataSet.ps1
 #
-# Copyright © 2021 Visualisierungsinstitut der Universität Stuttgart.
-# Alle Rechte vorbehalten.
+# Copyright © 2021 - 2025 Visualisierungsinstitut der Universität Stuttgart.
 #
 # Licenced under the MIT License.
 #
@@ -33,6 +32,12 @@ The DataSet parameter can be piped into the cmdlet.
 
 .OUTPUTS
 The description entries of all data sets are emitted.
+
+.EXAMPLE
+Get-DataSetDescription -Credential $cred -Uri "https://darus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.18419/DARUS-3044"
+
+.EXAMPLE
+Get-DataSetDescription -Credential $cred -Uri "https://darus.uni-stuttgart.de/api/datasets/135985"
 #>
 function Get-DataSetDescription {
     [CmdletBinding(DefaultParameterSetName = 'Uri')]
@@ -109,10 +114,10 @@ The DataSet parameter can be piped into the cmdlet.
 The files in the data set.
 
 .EXAMPLE
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet $dataverse | Select-Object -First 1 | Get-DataSetFiles
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet | Select-Object -First 1 | Get-DataSetFiles
 
 .EXAMPLE
-Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet $dataverse | Select-Object -First 1 | Get-DataSetFiles |  %{ $_.dataFile } | Measure-Object -Property filesize -Sum
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet | Select-Object -First 1 | Get-DataSetFiles |  %{ $_.dataFile } | Measure-Object -Property filesize -Sum
 #>
 function Get-DataSetFiles {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]

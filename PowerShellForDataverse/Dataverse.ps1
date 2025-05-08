@@ -1,10 +1,7 @@
-#
+﻿#
 # Dataverse.ps1
 #
-# Copyright © 2020 Visualisierungsinstitut der Universität Stuttgart.
-# Alle Rechte vorbehalten.
-#
-# Licenced under the MIT License.
+# Copyright © 2020 - 2025 Visualisierungsinstitut der Universität Stuttgart.
 #
 
 
@@ -218,6 +215,15 @@ The Dataverse parameter can be piped into the cmdlet.
 
 .OUTPUTS
 All data sets in the given dataverse.
+
+.EXAMPLE
+Get-Dataverse -Credential (Get-Credential token) -Uri https://darus.uni-stuttgart.de/api/dataverses/visus | Get-DataSet
+
+.EXAMPLE
+Get-DataSet -Credential (Get-Credential token) -Uri "https://darus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.18419/DARUS-3044"
+
+.EXAMPLE
+Get-DataSet -Credential (Get-Credential token) -Uri "https://darus.uni-stuttgart.de/api/datasets/135985"
 #>
 function Get-DataSet {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Low")]
@@ -709,4 +715,195 @@ function Remove-DataverseRole {
     }
 
     end { } 
+}
+
+
+<#
+.SYNOPSIS
+Adds a link to a data set from another dataverse.
+
+.DESCRIPTION
+Adds a data set to a dataverse that is actually located in another dataverse.
+Note that this only workds for public data sets and on the same server.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the dataverse to which the data set is being
+linked.
+
+.PARAMETER DataverseUri
+The DataverseUri parameter specifies the URI of the dataverse to which the data
+set is being linked.
+
+.PARAMETER DataSet
+The DataSet parameter specifies the data set to create the link for in the given
+dataverse.
+
+.PARAMETER DataSetUri
+The DataSetUri parameter specifies the URI of the data set to create the link
+for in the given dataverse.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored. The Credential parameter can be omitted if a Dataverse object is
+specified as input.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+A confirmation of the successful operation.
+
+.EXAMPLE
+Add-LinkedDataSet -Credential (Get-Credential token) -DataverseUri "https://demodarus.izus.uni-stuttgart.de/api/dataverses/visus_directupload" -DataSetUri "https://demodarus.izus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.80827/DARUS-2395"
+#>
+function Add-LinkedDataSet {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "Medium")]
+    param(
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Mandatory, Position = 0, ValueFromPipeline)]
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Mandatory, Position = 0)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 0)]
+        [System.Uri] $DataverseUri,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Mandatory, Position = 1)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Mandatory, Position = 1)]
+        [PSObject] $DataSet,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Position = 1)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 1)]
+        [System.Uri] $DataSetUri,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Position = 2)]
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Position = 2)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Position = 2)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 2)]
+        [PSCredential] $Credential
+    )
+
+    begin { }
+
+    process {
+        $subsets = $PSCmdlet.ParameterSetName -split ','
+
+        $params = Get-DataverseObject $subsets[0] $Dataverse $DataverseUri $Credential
+        $Dataverse = $params[0]
+        $Credential = $params[1]
+
+        $params = Get-DataverseObject $subsets[1] $DataSet $DataSetUri $Credential
+        $DataSet = $params[0]
+        if (-not $Credential) {
+            $Credential = $params[1]
+        }
+
+        # Note: Linking works only via the ID of the dataverse, not using a
+        # persistent ID. Therefore, we must rewrite the URI using the ID from
+        # the data set object to make sure this is always the case.
+        $Uri = [Uri]::new($DataSet.RequestUri)
+        $Uri = "$($Uri.Scheme)://$($Uri.DnsSafeHost)$($Uri.Segments[0..2] -join '')$($DataSet.id)/link/$($Dataverse.id)"
+        
+        if ($PSCmdlet.ShouldProcess($Uri, "PUT")) {
+             Invoke-DataverseRequest -Uri $Uri `
+                 -Credential $Credential `
+                 -Method Put
+        }
+    }
+
+    end { }
+}
+
+
+<#
+.SYNOPSIS
+Removes a linked data set from a dataverse.
+
+.DESCRIPTION
+Removes a link to a data set from another dataverse from the given dataverse.
+
+.PARAMETER Dataverse
+The Dataverse parameter specifies the dataverse from which the link is being
+removed.
+
+.PARAMETER DataverseUri
+The DataverseUri parameter specifies the URI of the dataverse from which the
+link is being removed.
+
+.PARAMETER DataSet
+The DataSet parameter specifies the data set to be unlinked.
+
+.PARAMETER DataSetUri
+The DataSetUri parameter specifies the URI of the data set to be unlinked.
+
+.PARAMETER Credential
+The Credential parameter specifies the API token as password. The user name is
+ignored. The Credential parameter can be omitted if a Dataverse object is
+specified as input.
+
+.INPUTS
+The Dataverse parameter can be piped into the cmdlet.
+
+.OUTPUTS
+A confirmation of the successful operation.
+
+.EXAMPLE
+Remove-LinkedDataSet -Credential (Get-Credential token) -DataverseUri "https://demodarus.izus.uni-stuttgart.de/api/dataverses/visus_directupload" -DataSetUri "https://demodarus.izus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.80827/DARUS-2395"
+#>
+function  Remove-LinkedDataSet {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
+    param(
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Mandatory, Position = 0, ValueFromPipeline)]
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Mandatory, Position = 0, ValueFromPipeline)]
+        [PSObject] $Dataverse,
+
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Mandatory, Position = 0)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 0)]
+        [System.Uri] $DataverseUri,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Mandatory, Position = 1)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Mandatory, Position = 1)]
+        [PSObject] $DataSet,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Position = 1)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 1)]
+        [System.Uri] $DataSetUri,
+
+        [Parameter(ParameterSetName = "Dataverse,DataSet", Position = 2)]
+        [Parameter(ParameterSetName = "Dataverse,DataSetUri", Position = 2)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSet", Position = 2)]
+        [Parameter(ParameterSetName = "DataverseUri,DataSetUri", Mandatory, Position = 2)]
+        [PSCredential] $Credential
+    )
+
+    begin { }
+
+    process {
+        $subsets = $PSCmdlet.ParameterSetName -split ','
+
+        $params = Get-DataverseObject $subsets[0] $Dataverse $DataverseUri $Credential
+        $Dataverse = $params[0]
+        $Credential = $params[1]
+
+        $params = Get-DataverseObject $subsets[1] $DataSet $DataSetUri $Credential
+        $DataSet = $params[0]
+        if (-not $Credential) {
+            $Credential = $params[1]
+        }
+
+        # Note: Linking works only via the ID of the dataverse, not using a
+        # persistent ID. Therefore, we must rewrite the URI using the ID from
+        # the data set object to make sure this is always the case.
+        # Also, epic WTIF: Why is the link created using the ID whereas it can
+        # only be deleted using the alias?
+        $Uri = [Uri]::new($DataSet.RequestUri)
+        $Uri = "$($Uri.Scheme)://$($Uri.DnsSafeHost)$($Uri.Segments[0..2] -join '')$($DataSet.id)/deleteLink/$($Dataverse.alias)"
+
+        if ($PSCmdlet.ShouldProcess($Uri, "DELETE")) {
+            Invoke-DataverseRequest -Uri $Uri `
+                -Credential $Credential `
+                -Method Delete
+        }
+    }
+
+    end { }
 }

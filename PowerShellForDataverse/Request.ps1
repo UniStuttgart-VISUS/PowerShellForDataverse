@@ -1,12 +1,103 @@
-#
+﻿#
 # Request.ps1
 #
-# Copyright © 2020 Visualisierungsinstitut der Universität Stuttgart.
-# Alle Rechte vorbehalten.
+# Copyright © 2020 - 2025 Visualisierungsinstitut der Universität Stuttgart.
 #
 # Licenced under the MIT License.
 #
 
+
+<#
+.SYNOPSIS
+Retrieves a dataverse object.
+
+.DESCRIPTION
+The Get-DataverseObject function does the opposite of the
+Split-RequestParameters function in that it returns the object regardless of
+whether it got an object or a URI for the object.
+
+.PARAMETER ParameterSet
+The ParameterSet is the name of the parameter set the function should process.
+This should always be $PSCmdlet.ParameterSetName. If this parameter is
+"Dataverse" or "DataSet", the DataverseObject is returned. Otherwise, the
+Uri parameter will be used to retrieve the object.
+
+.PARAMETER DataverseObject
+The DataverseObject parameter holds the dataverse object to retrieve the URI and
+the credential from. It is only used if the ParameterSet parameter is set
+acoordingly.
+
+.PARAMETER Uri
+The URI parameter holds the URI of a dataverse or data set.
+
+.PARAMETER Credential
+The Credential parameter holds the API token to be used for connecting to a
+dataverse.
+
+.NOTES
+This is an internal utility function.
+
+.INPUTS
+This function does not accept input from the pipline.
+
+.OUTPUTS
+An array holding the dataverse object and the credential (in this order).
+#>
+function Get-DataverseObject {
+    param(
+        [Parameter(Mandatory)] [string] $ParameterSet,
+        [PSObject] $DataverseObject,
+        [System.Uri] $Uri,
+        [PSCredential] $Credential
+    )
+
+    switch -Regex ($ParameterSet) {
+        "^Dataverse$|^DataSet$" {
+            if (-not $DataverseObject) {
+                throw "The Dataverse object is mandatory for the parameter set `"$ParameterSet`"."
+            }
+
+            if (!$Credential) {
+                $Credential = $DataverseObject.Credential
+                Write-Verbose "Using credential from existing object."
+           }
+        }
+
+        "^DataverseUri$" {
+            if (-not $Uri) {
+                throw "The URI parameter is mandatory for the parameter set `"$ParameterSet`"."
+            }
+
+            Write-Verbose "Retrieving dataverse `"$Uri`"."
+            $DataverseObject = (Get-Dataverse -Uri $Uri -Credential $Credential -WhatIf:$false)
+
+            if (!$DataverseObject) {
+                throw "The URI `"$Uri`" does not designate a valid dataverse."
+            }
+        }
+
+        "^DataSetUri$" {
+            if (-not $Uri) {
+                throw "The URI parameter is mandatory for the parameter set `"$ParameterSet`"."
+            }
+
+            if (!$Credential) {
+                 throw "The Credential parameter is mandatory for the parameter set `"$ParameterSet`"."
+            }
+
+            Write-Verbose "Retrieving data set `"$Uri`"."
+            $DataverseObject = (Get-DataSet -Uri $Uri -Credential $Credential -WhatIf:$false)
+
+            if (!$DataverseObject) {
+                throw "The URI `"$Uri`" does not designate a valid data set."
+            }
+        }
+
+        default { <# Nothing to do. #> }
+    }
+
+    return $DataverseObject, $Credential
+}
 
 <#
 .SYNOPSIS
@@ -141,9 +232,9 @@ function Split-RequestParameters {
     )
 
     switch -Regex ($ParameterSet) {
-        "^Dataverse|DataSet$" {
+        "^Dataverse$|^DataSet$" {
             if (-not $DataverseObject) {
-                throw "The Dataverse parameter is mandatory for the parameter set `"$ParameterSet`"."
+                throw "The Dataverse object parameter is mandatory for the parameter set `"$ParameterSet`"."
             }
 
             $Uri = [Uri]::new($DataverseObject.RequestUri)

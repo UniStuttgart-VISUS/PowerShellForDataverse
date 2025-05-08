@@ -1,8 +1,7 @@
-#
+﻿#
 # New-MetadataCmdlet.ps1
 #
-# Copyright © 2021 Visualisierungsinstitut der Universität Stuttgart.
-# Alle Rechte vorbehalten.
+# Copyright © 2021 - 2025 Visualisierungsinstitut der Universität Stuttgart.
 #
 # Licenced under the MIT License.
 #

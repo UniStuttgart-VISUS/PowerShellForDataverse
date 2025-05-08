@@ -1,8 +1,7 @@
-#
+﻿#
 # PowerShellForDataverse.Test.ps1
 #
-# Copyright © 2021 Visualisierungsinstitut der Universität Stuttgart.
-# Alle Rechte vorbehalten.
+# Copyright © 2021 - 2025 Visualisierungsinstitut der Universität Stuttgart.
 #
 # Licenced under the MIT License.
 #
@@ -36,7 +35,7 @@ Describe 'PowerShellForDataverse' {
 
     It "has the module file `"$path`"." {
         $path | Should Exist
-    }    
+    }
 
     It "can be imported." {
         { Import-Module $path -Force } | Should Not Throw

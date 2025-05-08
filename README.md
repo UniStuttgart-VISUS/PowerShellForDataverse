@@ -141,6 +141,20 @@ Get-Dataverse -Credential $cred -Uri https://darus.uni-stuttgart.de/api/datavers
     | Measure-Object -Property filesize -Sum
 ```
 
+#### Link a data set in a different dataverse
+```powershell
+$cred = Get-Credential token
+Add-LinkedDataSet -Credential $cred -DataverseUri https://demodarus.izus.uni-stuttgart.de/api/dataverses/visus_directupload `
+    -DataSetUri "https://demodarus.izus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.80827/DARUS-2395"
+```
+
+#### Remove a link from a dataverse
+```powershell
+$cred = Get-Credential token
+Remove-LinkedDataSet -Credential $cred -DataverseUri https://demodarus.izus.uni-stuttgart.de/api/dataverses/visus_directupload `
+    -DataSetUri "https://demodarus.izus.uni-stuttgart.de/api/datasets/:persistentId/?persistentId=doi:10.80827/DARUS-2395"
+```
+
 #### Export data sets into a data management plan
 ```powershell
 $word = New-Object -ComObject Word.Application
@@ -164,6 +178,31 @@ Get-ChildDataverse $dataverse `
             $description = Get-DataSetDescription $dataSet
             $citation = $dataSet | Get-Metadata | ?{ $_.name -eq 'citation' }
             $privacy = $dataSet | Get-Metadata | ?{ $_.name -eq 'privacy' }
+
+            # Call to local OLLAMA for short summary.
+            $request = New-Object PSObject -Property @{ `
+                model = "MISTRAL"; `
+                stream = $False; `
+                prompt = "Given the following description of a data set, summarise in two sentences using British English what data it contains: $($description -replace '<[^>]+>','')" `
+            } | ConvertTo-Json
+            $summary = ((Invoke-WebRequest -Method POST -Body "$request" -Uri http://localhost:11434/api/generate).Content | ConvertFrom-Json).response
+
+            $request = New-Object PSObject -Property @{ `
+                model = "MISTRAL"; `
+                stream = $False; `
+                prompt = "Given the following description of a data set, describe in one sentence what other researchers than the authors could do with the data: $($description -replace '<[^>]+>','')" `
+            } | ConvertTo-Json
+            $utility = ((Invoke-WebRequest -Method POST -Body "$request" -Uri http://localhost:11434/api/generate).Content | ConvertFrom-Json).response
+
+            $publication = ($citation | %{ $_.fields} | ?{ $_.typeName -eq 'publication' }).value.publicationCitation.value
+            if ($publication -imatch "@.+\{") {
+                $request = New-Object PSObject -Property @{ `
+                    model = "MISTRAL"; `
+                    stream = $False; `
+                    prompt = "Convert the following Bibtext to a MLA-style bibliography entry: $publication" `
+                } | ConvertTo-Json
+                $publication = ((Invoke-WebRequest -Method POST -Body "$request" -Uri http://localhost:11434/api/generate).Content | ConvertFrom-Json).response
+            }
 
             $word.Selection.Start = $doc.Content.End
             $sel = $word.Selection
@@ -216,17 +255,17 @@ Get-ChildDataverse $dataverse `
 
             $tab.Cell(9, 1).Range.Text = "Description:"
             $tab.Cell(9, 1).Range.Bold = $true
-            $tab.Cell(9, 2).Range.Text = $description -replace '<[^>]+>',''
+            $tab.Cell(9, 2).Range.Text = $summary.Trim()
 
             $tab.Cell(10, 1).Range.Text = "Purpose (for the project):"
             $tab.Cell(10, 1).Range.Bold = $true
-            $value = ($citation | %{ $_.fields} | ?{ $_.typeName -eq 'publication' }).value.publicationCitation.value
-            if ($value) {
-                $tab.Cell(10, 2).Range.Text = "Basis for publication $value"
+            if ($publication) {
+                $tab.Cell(10, 2).Range.Text = "Basis for publication $publication"
             }
 
             $tab.Cell(11, 1).Range.Text = "Utility (for others):"
             $tab.Cell(11, 1).Range.Bold = $true
+            $tab.Cell(11, 2).Range.Text = $utility.Trim()
 
             $tab.Cell(12, 1).Range.Text = "Repository:"
             $tab.Cell(12, 1).Range.Bold = $true
