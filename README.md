@@ -1,5 +1,5 @@
 # PowerShellForDataverse
-PowerShell for Dataverse provides a wrapper around the [native web API](https://guides.dataverse.org/en/latest/api/native-api.html) of [Dataverse](https://dataverse.org/).
+PowerShell for Dataverse provides a wrapper around the [native web API](https://guides.dataverse.org/en/latest/api/native-api.html) of [Dataverse](https://dataverse.org/) ([Source](https://github.com/IQSS/dataverse)).
 
 ## Installation
 Copy the `PowerShellForDataverse` directory and all of its contents into one of the module paths indicated by `$env:PSModulePath`. Depending on the version of PowerShell you are running, you may need to import the module using `Import-Module PowerShellForDataverse`. You may also import the module from any locating by calling `Import-Module [Path to PowerShellForDataverse folder]\PowerShellForDataverse.psd1`.
